@@ -20,10 +20,24 @@ class Executor:
             logging.debug("Processing method %s", member)
 
             # copying methods from the protocol but overriding them with remote call logic
-            self.__dict__[name] = partial(self._call_remote_method, member.model, name)
+            self.__dict__[name] = partial(
+                self._call_remote_method, member.args_model, member.return_model, name
+            )
 
     async def _call_remote_method(
-        self, model: type[pydantic.BaseModel], method_name: str, **arguments
+        self,
+        args_model: type[pydantic.BaseModel],
+        return_model: type[pydantic.BaseModel],
+        method_name: str,
+        **arguments,
     ):
-        payload = model(**arguments)
-        return await self._connection.communicate(method_name, payload.json().encode())
+        payload = args_model(**arguments)
+        response = await self._connection.communicate(
+            method_name, payload.json().encode()
+        )
+
+        if return_model is None:
+            return None
+
+        model = return_model.parse_raw(response)
+        return model.value

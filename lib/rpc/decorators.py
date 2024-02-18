@@ -1,11 +1,13 @@
 import inspect
 import logging
-from typing import TypeVar
+from typing import TypeVar, Union, Generic
 
 import pydantic
 
 
 def _init(cls):
+    cls.registered = {}
+
     for name, member in inspect.getmembers(cls):
         if not inspect.isfunction(member):
             continue
@@ -20,9 +22,19 @@ def _init(cls):
             for argname, argtype in argspec.annotations.items()
             if argname != "return"
         }
-        model = pydantic.create_model(name, **fields, __module__=cls.__name__)
+        args_model = pydantic.create_model(name, **fields, __module__=cls.__name__)
 
-        setattr(member, "model", model)
+        return_type = argspec.annotations.get("return")
+        if return_type is not None:
+            return_model = pydantic.create_model(
+                name, **{"value": (return_type, ...)}, __module__=cls.__name__
+            )
+        else:
+            return_model = None
+
+        setattr(member, "args_model", args_model)
+        setattr(member, "return_model", return_model)
+        cls.registered[name] = member
 
 
 def _validate_method_args(argspec: inspect.FullArgSpec):
@@ -37,10 +49,14 @@ def _validate_method_args(argspec: inspect.FullArgSpec):
             raise ValueError("Argument does not have proper annotation: %s" % arg)
 
 
-T = TypeVar("T", bound=type)
+T = TypeVar("T")
 
 
-def serializable(cls: type[T]) -> T:
+class SerializableMixin(Generic[T]):
+    metadata: T
+
+
+def serializable(cls: T) -> Union[T, SerializableMixin]:
     _init(cls)
 
     # save self-reference so everybody
