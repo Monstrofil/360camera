@@ -1,6 +1,7 @@
 import asyncio
 import functools
 import logging
+import types
 
 import typer
 
@@ -25,13 +26,21 @@ class Application(ServerProtocol):
             protocol=ServerProtocol, connection=connection
         )
 
-        async_method = getattr(executor, name)
-        result = await async_method(*args, **kwargs)
+        async_method = getattr(executor, name)(*args, **kwargs)
+        method_result = await async_method
+
+        if isinstance(method_result, types.AsyncGeneratorType):
+            while True:
+                try:
+                    item = await method_result.__anext__()
+                except StopAsyncIteration:
+                    break
+                print(item)
+        else:
+            print("result", method_result.dict())
 
         writer.close()
         await writer.wait_closed()
-
-        return result
 
     def _create_command_callback(self, name, future):
         @functools.wraps(future)
@@ -39,7 +48,11 @@ class Application(ServerProtocol):
             logging.info("Got a call with arguments %s %s %s", name, args, kwargs)
 
             result = asyncio.run(self.run_command(name, *args, **kwargs))
-            print(result)
+            if isinstance(result, types.GeneratorType):
+                for item in result:
+                    print(item)
+            else:
+                print(result)
 
         return call_command_wrapper
 

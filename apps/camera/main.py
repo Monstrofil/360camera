@@ -1,19 +1,35 @@
 import asyncio
 import datetime
 import logging
+from typing import Generator
 
-from lib.camera.protocol import ServerProtocol, CaptureStartData
+from lib.camera.protocol import ServerProtocol, CaptureStartData, FrameData
 from lib.rpc.server import start_server
 
 
-class Handler(ServerProtocol):
-    async def init(self) -> int:
-        return 123123
+class CameraAPI:
+    pass
 
-    async def start(self, *, test_arg: str) -> CaptureStartData:
+
+class Handler(ServerProtocol):
+    def __init__(self):
+        super().__init__()
+
+        self._camera_api = CameraAPI()
+        self._is_capture_started = False
+
+    async def start(self, *, device_id: int) -> CaptureStartData:
+        if self._is_capture_started:
+            raise RuntimeError("Already started.")
+
         return CaptureStartData(
             capture_time=datetime.datetime.now(), index=1, meta=dict(test="test")
         )
+
+    async def iter_frames(self) -> Generator[FrameData, None, None]:
+        for i in range(10):
+            yield FrameData(index=i)
+            await asyncio.sleep(1)
 
 
 async def main():

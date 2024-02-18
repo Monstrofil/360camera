@@ -2,9 +2,8 @@ import inspect
 import logging
 from functools import partial
 
-import pydantic
 
-from lib.camera.protocol import ServerProtocol
+from lib.camera.protocol import ServerProtocol, MethodType
 from lib.rpc.connection import Connection
 
 
@@ -20,24 +19,25 @@ class Executor:
             logging.debug("Processing method %s", member)
 
             # copying methods from the protocol but overriding them with remote call logic
-            self.__dict__[name] = partial(
-                self._call_remote_method, member.args_model, member.return_model, name
-            )
+            self.__dict__[name] = partial(self._call_remote_method, member, name)
 
     async def _call_remote_method(
         self,
-        args_model: type[pydantic.BaseModel],
-        return_model: type[pydantic.BaseModel],
+        member: MethodType,
         method_name: str,
         **arguments,
     ):
-        payload = args_model(**arguments)
-        response = await self._connection.communicate(
-            method_name, payload.model_dump_json().encode()
-        )
+        payload = member.args_model(**arguments)
 
-        if return_model is None:
-            return None
-
-        model = return_model.parse_raw(response)
-        return model.value
+        if member.method_type == "return":
+            response = await self._connection.communicate(
+                method_name, payload.model_dump_json().encode()
+            )
+            return member.return_model(**response.dict())
+        else:
+            return (
+                member.return_model(**response.dict())
+                async for response in self._connection.stream(
+                    method_name, payload.model_dump_json().encode()
+                )
+            )

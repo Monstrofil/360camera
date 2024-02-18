@@ -2,18 +2,21 @@ import asyncio
 import logging
 import traceback
 
-from .connection.tcp import RPCRequest, RPCResponse
+from .connection import RPCRequest, RPCResponse
+from .decorators import SerializableMixin
 
 
 async def handle_client(
-    handler: object, reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+    handler: SerializableMixin,
+    reader: asyncio.StreamReader,
+    writer: asyncio.StreamWriter,
 ):
     while not reader.at_eof():
         payload = await reader.readline()
         if not payload:
             continue
 
-        logging.debug("Received response %s", payload)
+        logging.debug("Received request %s", payload)
         tcp_data = RPCRequest.parse_raw(payload)
 
         # getting metadata of the methods to be able to unpack payload
@@ -21,16 +24,41 @@ async def handle_client(
         arguments = method_meta.args_model.parse_raw(tcp_data.arguments)
 
         # actually executing what we have in handler
-        result = await getattr(handler, tcp_data.method)(**arguments.dict())
+        method = getattr(handler, tcp_data.method)(**arguments.dict())
 
-        logging.info(
-            "Function `%s`(**%s) result: `%s`",
-            tcp_data.method,
-            repr(arguments.dict()),
-            result,
-        )
+        if method_meta.method_type == "yield":
+            async for result in method:
+                logging.info(
+                    "Function `%s`(**%s) yield: `%s`",
+                    tcp_data.method,
+                    repr(arguments.dict()),
+                    result,
+                )
 
-        writer.write(RPCResponse(value=result).model_dump_json().encode() + b"\n")
+                writer.write(
+                    RPCResponse(value=result, type="yield").model_dump_json().encode()
+                    + b"\n"
+                )
+            writer.write(
+                RPCResponse(value=None, type="stop_iteration")
+                .model_dump_json()
+                .encode()
+                + b"\n"
+            )
+        else:
+            result = await method
+
+            logging.info(
+                "Function `%s`(**%s) result: `%s`",
+                tcp_data.method,
+                repr(arguments.dict()),
+                result,
+            )
+
+            writer.write(
+                RPCResponse(value=result, type="return").model_dump_json().encode()
+                + b"\n"
+            )
 
     logging.info("Client disconnected")
     writer.close()

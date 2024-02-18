@@ -26,14 +26,28 @@ def _init(cls):
 
         return_type = argspec.annotations.get("return")
         if return_type is not None:
+            if return_type.__name__ == "Generator":
+                value_type = return_type.__args__[0]
+                model_type = "yield"
+            else:
+                value_type = return_type
+                model_type = "return"
+
             return_model = pydantic.create_model(
-                name, **{"value": (return_type, ...)}, __module__=cls.__name__
+                name,
+                **{
+                    "value": (value_type, ...),
+                    "type": (str, model_type),
+                },
+                __module__=cls.__name__,
             )
         else:
             return_model = None
+            model_type = None
 
         setattr(member, "args_model", args_model)
         setattr(member, "return_model", return_model)
+        setattr(member, "method_type", model_type)
         cls.registered[name] = member
 
 
