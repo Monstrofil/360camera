@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from typing import AsyncIterator
+from typing import Generator
 
 from . import Connection, RPCRequest, RPCResponse
 
@@ -11,32 +11,29 @@ class TcpConnection(Connection, asyncio.Protocol):
         self.reader = reader
         self.writer = writer
 
-    async def communicate(self, method_name: str, arguments: bytes) -> RPCResponse:
-        logging.info("Sending request %s", arguments)
-        tcp_payload = RPCRequest(arguments=arguments, method=method_name)
-        self.writer.write(tcp_payload.model_dump_json().encode() + b"\n")
-
-        response = await self.reader.readline()
-        logging.info("Got response %s", response)
-
-        return RPCResponse.parse_raw(response)
-
     async def stream(
         self, method_name: str, arguments: bytes
-    ) -> AsyncIterator[RPCResponse]:
+    ) -> RPCResponse | Generator[RPCResponse, None, None]:
         logging.info("Sending request %s", arguments)
+
         tcp_payload = RPCRequest(arguments=arguments, method=method_name)
         self.writer.write(tcp_payload.model_dump_json().encode() + b"\n")
 
-        while True:
-            response = await self.reader.readline()
-            logging.info("Got yield %s", response)
+        async def loop():
+            while True:
+                response = await self.reader.readline()
+                logging.info("Got yield %s", response)
 
-            rpc_response = RPCResponse.parse_raw(response)
-            if rpc_response.type == "stop_iteration":
-                return
+                rpc_response = RPCResponse.parse_raw(response)
+                if rpc_response.type == "stop_iteration":
+                    return
 
-            yield rpc_response
+                if rpc_response.type == "error":
+                    raise RuntimeError(rpc_response.value)
+
+                yield rpc_response
+
+        return (item async for item in loop())
 
     async def receive_message(self, method_name: str, arguments: bytes):
         mathod = getattr(self._handler, method_name)

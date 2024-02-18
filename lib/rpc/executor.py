@@ -29,15 +29,18 @@ class Executor:
     ):
         payload = member.args_model(**arguments)
 
-        if member.method_type == "return":
-            response = await self._connection.communicate(
-                method_name, payload.model_dump_json().encode()
-            )
-            return member.return_model(**response.dict())
-        else:
+        stream = await self._connection.stream(
+            method_name, payload.model_dump_json().encode()
+        )
+
+        if member.streaming:
             return (
-                member.return_model(**response.dict())
-                async for response in self._connection.stream(
-                    method_name, payload.model_dump_json().encode()
-                )
+                member.return_model(**response.dict()).value
+                async for response in stream
             )
+        else:
+            if member.return_model is None:
+                return None
+
+            async for item in stream:
+                return member.return_model(**item.dict()).value

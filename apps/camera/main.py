@@ -27,9 +27,12 @@ class Handler(ServerProtocol):
         )
 
     async def iter_frames(self) -> Generator[FrameData, None, None]:
+        # if not self._is_capture_started:
+        #     raise RuntimeError("Capture not started")
+
         for i in range(10):
             yield FrameData(index=i)
-            await asyncio.sleep(1)
+            await asyncio.sleep(0.1)
 
 
 async def main():

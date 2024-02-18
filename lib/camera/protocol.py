@@ -1,5 +1,5 @@
 import datetime
-from typing import Generator
+import typing
 
 import pydantic
 from pydantic import BaseModel
@@ -7,13 +7,16 @@ from pydantic import BaseModel
 from lib.rpc.decorators import serializable
 
 
-class MethodType:
-    args_model: pydantic.BaseModel
-    return_model: pydantic.BaseModel
-    method_type: str
+class MethodType(typing.Protocol):
+    args_model: type[pydantic.BaseModel]
+    return_model: type[pydantic.BaseModel]
+    streaming: bool
 
 
-def method(func) -> MethodType:
+T = typing.TypeVar("T")
+
+
+def method(func: T) -> T | MethodType:
     return func
 
 
@@ -44,5 +47,5 @@ class ServerProtocol:
         ...
 
     @method
-    async def iter_frames(self) -> Generator[FrameData, None, None]:
+    async def iter_frames(self) -> typing.AsyncIterable[FrameData]:
         ...

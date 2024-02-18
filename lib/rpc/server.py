@@ -26,37 +26,44 @@ async def handle_client(
         # actually executing what we have in handler
         method = getattr(handler, tcp_data.method)(**arguments.dict())
 
-        if method_meta.method_type == "yield":
-            async for result in method:
+        try:
+            if method_meta.streaming:
+                async for result in method:
+                    logging.info(
+                        "Function `%s`(**%s) yield: `%s`",
+                        tcp_data.method,
+                        repr(arguments.dict()),
+                        result,
+                    )
+
+                    writer.write(
+                        RPCResponse(value=result, type="yield")
+                        .model_dump_json()
+                        .encode()
+                        + b"\n"
+                    )
+                writer.write(
+                    RPCResponse(value=None, type="stop_iteration")
+                    .model_dump_json()
+                    .encode()
+                    + b"\n"
+                )
+            else:
+                result = await method
+
                 logging.info(
-                    "Function `%s`(**%s) yield: `%s`",
+                    "Function `%s`(**%s) return: `%s`",
                     tcp_data.method,
                     repr(arguments.dict()),
                     result,
                 )
 
                 writer.write(
-                    RPCResponse(value=result, type="yield").model_dump_json().encode()
-                    + b"\n"
+                    RPCResponse(value=result).model_dump_json().encode() + b"\n"
                 )
+        except Exception as e:
             writer.write(
-                RPCResponse(value=None, type="stop_iteration")
-                .model_dump_json()
-                .encode()
-                + b"\n"
-            )
-        else:
-            result = await method
-
-            logging.info(
-                "Function `%s`(**%s) result: `%s`",
-                tcp_data.method,
-                repr(arguments.dict()),
-                result,
-            )
-
-            writer.write(
-                RPCResponse(value=result, type="return").model_dump_json().encode()
+                RPCResponse(value=str(e), type="error").model_dump_json().encode()
                 + b"\n"
             )
 

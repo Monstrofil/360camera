@@ -26,28 +26,27 @@ def _init(cls):
 
         return_type = argspec.annotations.get("return")
         if return_type is not None:
-            if return_type.__name__ == "Generator":
+            if return_type.__name__ == "AsyncIterable":
                 value_type = return_type.__args__[0]
-                model_type = "yield"
+                streaming = True
             else:
                 value_type = return_type
-                model_type = "return"
+                streaming = False
 
             return_model = pydantic.create_model(
                 name,
                 **{
                     "value": (value_type, ...),
-                    "type": (str, model_type),
                 },
                 __module__=cls.__name__,
             )
         else:
             return_model = None
-            model_type = None
+            streaming = False
 
         setattr(member, "args_model", args_model)
         setattr(member, "return_model", return_model)
-        setattr(member, "method_type", model_type)
+        setattr(member, "streaming", streaming)
         cls.registered[name] = member
 
 

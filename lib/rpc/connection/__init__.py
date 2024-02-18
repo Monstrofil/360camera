@@ -20,10 +20,7 @@ class Connection:
     def __init__(self):
         pass
 
-    async def communicate(self, method_name: str, arguments: bytes) -> RPCResponse:
-        ...
-
-    def stream(
+    async def stream(
         self, method_name: str, arguments: bytes
     ) -> AsyncGenerator[RPCResponse, None]:
         ...
