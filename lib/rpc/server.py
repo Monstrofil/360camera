@@ -42,6 +42,7 @@ async def handle_client(
                         .encode()
                         + b"\n"
                     )
+                    await writer.drain()
                 writer.write(
                     RPCResponse(value=None, type="stop_iteration")
                     .model_dump_json()

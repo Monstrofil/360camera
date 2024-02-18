@@ -29,6 +29,7 @@ class CaptureStartData(BaseModel):
 
 class FrameData(BaseModel):
     index: int
+    frame: bytes
 
 
 @serializable
