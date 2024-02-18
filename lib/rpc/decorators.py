@@ -37,7 +37,7 @@ def _validate_method_args(argspec: inspect.FullArgSpec):
             raise ValueError("Argument does not have proper annotation: %s" % arg)
 
 
-T = TypeVar('T', bound=type)
+T = TypeVar("T", bound=type)
 
 
 def serializable(cls: type[T]) -> T:

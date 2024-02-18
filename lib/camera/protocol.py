@@ -3,15 +3,12 @@ from lib.rpc.decorators import serializable
 
 @serializable
 class ServerProtocol:
-    def init(self) -> None:
+    async def init(self) -> None:
         ...
 
-    def fini(self) -> None:
+    async def fini(self) -> None:
         ...
 
-    def start(self, *, test_arg: str) -> str:
+    async def start(self, *, test_arg: str) -> str:
         ...
 
-
-class ProtocolHandler(ServerProtocol):
-    metadata = ServerProtocol

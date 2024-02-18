@@ -14,5 +14,6 @@ def test_rpc_metadata():
             ...
 
     assert Protocol.metadata.init.model.model_fields == {
-        'arg1': FieldInfo(annotation=str, required=True),
-        'arg2': FieldInfo(annotation=List[str], required=True)}
+        "arg1": FieldInfo(annotation=str, required=True),
+        "arg2": FieldInfo(annotation=List[str], required=True),
+    }
