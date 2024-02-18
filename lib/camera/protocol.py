@@ -1,4 +1,7 @@
+import datetime
+
 import pydantic
+from pydantic import BaseModel
 
 from lib.rpc.decorators import serializable
 
@@ -12,6 +15,13 @@ def method(func) -> MethodType:
     return func
 
 
+class CaptureStartData(BaseModel):
+    capture_time: datetime.datetime
+    index: int
+
+    meta: dict[str, str]
+
+
 @serializable
 class ServerProtocol:
     @method
@@ -23,5 +33,5 @@ class ServerProtocol:
         ...
 
     @method
-    async def start(self, *, test_arg: str) -> str:
+    async def start(self, *, test_arg: str) -> CaptureStartData:
         ...

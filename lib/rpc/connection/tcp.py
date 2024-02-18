@@ -1,16 +1,21 @@
 import asyncio
 import logging
 
+import pydantic
 from pydantic import BaseModel
 
 from lib.rpc.connection import Connection
 
 
-class TcpPayload(BaseModel):
+class RPCRequest(BaseModel):
     method: str
     arguments: bytes
 
     type: str = "method_call"
+
+
+class RPCResponse(pydantic.BaseModel):
+    value: pydantic.BaseModel | object
 
 
 class TcpConnection(Connection, asyncio.Protocol):
@@ -21,8 +26,8 @@ class TcpConnection(Connection, asyncio.Protocol):
 
     async def communicate(self, method_name: str, arguments: bytes):
         logging.info("Sending request %s", arguments)
-        tcp_payload = TcpPayload(arguments=arguments, method=method_name)
-        self.writer.write(tcp_payload.json().encode() + b"\n")
+        tcp_payload = RPCRequest(arguments=arguments, method=method_name)
+        self.writer.write(tcp_payload.model_dump_json().encode() + b"\n")
 
         response = await self.reader.readline()
         logging.info("Got response %s", response)

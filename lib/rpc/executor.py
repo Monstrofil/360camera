@@ -33,7 +33,7 @@ class Executor:
     ):
         payload = args_model(**arguments)
         response = await self._connection.communicate(
-            method_name, payload.json().encode()
+            method_name, payload.model_dump_json().encode()
         )
 
         if return_model is None:

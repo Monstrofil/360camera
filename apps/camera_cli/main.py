@@ -9,7 +9,6 @@ from lib.rpc.connection.tcp import TcpConnection
 from lib.rpc.executor import Executor
 
 
-
 class Application(ServerProtocol):
     def __init__(self):
         self.cli = typer.Typer()
