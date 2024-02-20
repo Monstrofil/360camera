@@ -1,8 +1,8 @@
 import asyncio
 import logging
-import traceback
 
-from .connection import RPCRequest, RPCResponse
+from .connection.channel import Channel
+from .connection import MethodCall, MethodReturn
 from .decorators import SerializableMixin
 
 
@@ -17,7 +17,7 @@ async def handle_client(
             continue
 
         logging.debug("Received request %s", payload)
-        tcp_data = RPCRequest.parse_raw(payload)
+        tcp_data = MethodCall.parse_raw(payload)
 
         # getting metadata of the methods to be able to unpack payload
         method_meta = getattr(handler.metadata, tcp_data.method)
@@ -37,14 +37,14 @@ async def handle_client(
                     )
 
                     writer.write(
-                        RPCResponse(value=result, type="yield")
+                        MethodReturn(value=result, type="yield")
                         .model_dump_json()
                         .encode()
                         + b"\n"
                     )
                     await writer.drain()
                 writer.write(
-                    RPCResponse(value=None, type="stop_iteration")
+                    MethodReturn(value=None, type="stop_iteration")
                     .model_dump_json()
                     .encode()
                     + b"\n"
@@ -60,11 +60,11 @@ async def handle_client(
                 )
 
                 writer.write(
-                    RPCResponse(value=result).model_dump_json().encode() + b"\n"
+                    MethodReturn(value=result).model_dump_json().encode() + b"\n"
                 )
         except Exception as e:
             writer.write(
-                RPCResponse(value=str(e), type="error").model_dump_json().encode()
+                MethodReturn(value=str(e), type="error").model_dump_json().encode()
                 + b"\n"
             )
 
@@ -74,16 +74,20 @@ async def handle_client(
 
 
 async def start_server(handler, host: str = "127.0.0.1", port: int = 8000):
-    async def client_connected(
+    _channels: dict[tuple[str, int], Channel] = dict()
+
+    async def create_channel(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ):
-        try:
-            await handle_client(handler, reader, writer)
-        except Exception as e:
-            traceback.print_exception(e)
+        peer = writer.transport.get_extra_info("peername")
+
+        if peer in _channels:
+            raise RuntimeError("Channel already exists")
+
+        _channels[peer] = Channel(reader, writer, handler)
 
     server = await asyncio.start_server(
-        host=host, port=port, client_connected_cb=client_connected
+        host=host, port=port, client_connected_cb=create_channel
     )
 
     async with server:

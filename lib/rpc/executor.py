@@ -4,13 +4,14 @@ from functools import partial
 
 
 from lib.camera.protocol import ServerProtocol, MethodType
-from lib.rpc.connection import Connection
+from lib.rpc.connection.channel import Channel, Iterator
+from lib.rpc.connection import MethodCall
 
 
 class Executor:
-    def __init__(self, protocol: type[ServerProtocol], connection: Connection):
+    def __init__(self, protocol: type[ServerProtocol], channel: Channel):
         self._protocol = protocol
-        self._connection = connection
+        self._channel = channel
 
         for name, member in inspect.getmembers(self._protocol):
             if not inspect.isfunction(member):
@@ -28,19 +29,18 @@ class Executor:
         **arguments,
     ):
         payload = member.args_model(**arguments)
-
-        stream = await self._connection.stream(
-            method_name, payload.model_dump_json().encode()
+        response = await self._channel.send_request(
+            MethodCall(method=method_name, arguments=payload.model_dump_json().encode())
+            .model_dump_json()
+            .encode()
+            + b"\n"
         )
 
-        if member.streaming:
-            return (
-                member.return_model(**response.dict()).value
-                async for response in stream
-            )
-        else:
-            if member.return_model is None:
-                return None
+        if member.return_model is None:
+            return None
 
-            async for item in stream:
-                return member.return_model(**item.dict()).value
+        if isinstance(response, Iterator):
+            return (
+                member.return_model.parse_raw(item).value async for item in response
+            )
+        return member.return_model.parse_raw(response).value

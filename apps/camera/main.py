@@ -31,15 +31,17 @@ class Handler(ServerProtocol):
         self._is_capture_started = False
 
     async def iter_frames(self) -> Generator[FrameData, None, None]:
-        if not self._is_capture_started:
-            raise RuntimeError("Capture not started")
+        # if not self._is_capture_started:
+        #     raise RuntimeError("Capture not started")
 
-        for i in range(101):
-            frame = self._camera_api.get_frame()
-            yield FrameData(index=i, frame=bytes(frame.get_buffer().raw[:10]))
+        for i in range(10):
+            yield FrameData(index=i, frame=b"123")
 
-            await asyncio.sleep(0)
-
+        # for i in range(101):
+        #     frame = self._camera_api.get_frame()
+        #     yield FrameData(index=i, frame=bytes(frame.get_buffer().raw[:10]))
+        #
+        #     await asyncio.sleep(0)
 
 
 async def main():

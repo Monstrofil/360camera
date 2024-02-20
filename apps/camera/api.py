@@ -20,8 +20,6 @@ class CameraAPI:
 
     def get_frame(self):
         frame = self._cam.get_image()
-        logging.info('Got frame %s', frame.get_buffer().length)
+        logging.info("Got frame %s", frame.get_buffer().length)
         pygame.image.save(frame, "photo.png")
         return frame
-
-

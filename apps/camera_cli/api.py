@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from lib.camera.protocol import ServerProtocol
-from lib.rpc.connection.tcp import TcpConnection
+from lib.rpc.connection.channel import Channel
 from lib.rpc.executor import Executor
 
 
@@ -10,8 +10,8 @@ async def main():
     reader, writer = await asyncio.open_connection(host="127.0.0.1", port=8000)
     logging.info("Connection to the server established")
 
-    connection = TcpConnection(reader, writer)
-    executor: ServerProtocol = Executor(protocol=ServerProtocol, connection=connection)
+    channel = Channel(reader, writer, handler=None)
+    executor: ServerProtocol = Executor(protocol=ServerProtocol, channel=channel)
 
     method_result = await executor.start(device_id=1)
     print("start", method_result)
