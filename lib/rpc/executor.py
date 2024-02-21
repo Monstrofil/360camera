@@ -1,4 +1,3 @@
-import inspect
 import logging
 from functools import partial
 
@@ -13,10 +12,7 @@ class Executor:
         self._protocol = protocol
         self._channel = channel
 
-        for name, member in inspect.getmembers(self._protocol):
-            if not inspect.isfunction(member):
-                continue
-
+        for name, member in self._protocol.metadata.items():
             logging.debug("Processing method %s", member)
 
             # copying methods from the protocol but overriding them with remote call logic

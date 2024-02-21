@@ -1,23 +1,11 @@
 import datetime
 import typing
 
-import pydantic
 from pydantic import BaseModel
 
-from lib.rpc.decorators import serializable
-
-
-class MethodType(typing.Protocol):
-    args_model: type[pydantic.BaseModel]
-    return_model: type[pydantic.BaseModel]
-    streaming: bool
-
+from lib.rpc.decorators import MethodType, _init
 
 T = typing.TypeVar("T")
-
-
-def method(func: T) -> T | MethodType:
-    return func
 
 
 class CaptureStartData(BaseModel):
@@ -32,13 +20,22 @@ class FrameData(BaseModel):
     frame: bytes
 
 
-@serializable
-class ServerProtocol:
-    # todo: search for the ways to eliminate this line
-    #   right now pycharm is seriously confused about
-    #   types without this hack
-    metadata: "ServerProtocol"
+class RPCProtocol(typing.Protocol):
+    metadata: dict[str, MethodType]
 
+    def __init_subclass__(cls, **kwargs):
+        if cls.mro()[1] != __class__:
+            return
+
+        cls.metadata = _init(prototype=cls)
+
+
+def method(func: T) -> T | MethodType:
+    setattr(func, "is_proto", True)
+    return func
+
+
+class ServerProtocol(RPCProtocol):
     @method
     async def start(self, *, device_id: int) -> CaptureStartData:
         ...
@@ -50,3 +47,13 @@ class ServerProtocol:
     @method
     async def iter_frames(self) -> typing.AsyncIterable[FrameData]:
         ...
+
+
+class CAMProtocol(RPCProtocol):
+    @method
+    async def call(self) -> typing.AsyncIterable[FrameData]:
+        ...
+
+
+class Test(CAMProtocol):
+    pass

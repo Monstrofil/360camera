@@ -119,7 +119,7 @@ class Channel:
             tcp_data = MethodCall.parse_raw(message.payload)
 
             # getting metadata of the methods to be able to unpack payload
-            method_meta = getattr(self.handler.metadata, tcp_data.method)
+            method_meta = self.handler.metadata[tcp_data.method]
             arguments = method_meta.args_model.parse_raw(tcp_data.arguments)
 
             # actually executing what we have in handler

@@ -10,8 +10,6 @@ from lib.rpc.server import start_server
 
 class Handler(ServerProtocol):
     def __init__(self):
-        super().__init__()
-
         self._camera_api = CameraAPI()
         self._is_capture_started = False
 

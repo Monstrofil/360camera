@@ -6,8 +6,7 @@ import types
 import typer
 
 from lib.camera.protocol import ServerProtocol
-from lib.rpc.connection.channel import Channel
-from lib.rpc.executor import Executor
+from lib.rpc.server import connect
 
 
 class Application(ServerProtocol):
@@ -18,11 +17,7 @@ class Application(ServerProtocol):
             self.cli.command()(self._create_command_callback(name, getattr(self, name)))
 
     async def run_command(self, name, *args, **kwargs):
-        reader, writer = await asyncio.open_connection(host="127.0.0.1", port=8000)
-        logging.info("Connection to the server established")
-
-        channel = Channel(reader, writer, handler=None)
-        executor: ServerProtocol = Executor(protocol=ServerProtocol, channel=channel)
+        executor = await connect(host="127.0.0.1", port=8000, protocol=ServerProtocol)
 
         async_method = getattr(executor, name)(*args, **kwargs)
         method_result = await async_method
@@ -36,9 +31,6 @@ class Application(ServerProtocol):
                 print(item)
         else:
             print("result", method_result.dict())
-
-        writer.close()
-        await writer.wait_closed()
 
     def _create_command_callback(self, name, future):
         @functools.wraps(future)
