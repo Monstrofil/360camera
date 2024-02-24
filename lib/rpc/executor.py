@@ -1,18 +1,22 @@
 import logging
+import typing
 from functools import partial
 
 
-from lib.camera.protocol import ServerProtocol, MethodType
 from lib.rpc.connection.channel import Channel, Iterator
 from lib.rpc.connection import MethodCall
+from lib.rpc.decorators import MethodType
 
 
-class Executor:
-    def __init__(self, protocol: type[ServerProtocol], channel: Channel):
+T = typing.TypeVar("T")
+
+
+class Executor(typing.Generic[T]):
+    def __init__(self, protocol: T, channel: Channel):
         self._protocol = protocol
         self._channel = channel
 
-        for name, member in self._protocol.metadata.items():
+        for name, member in self._protocol.methods.items():
             logging.debug("Processing method %s", member)
 
             # copying methods from the protocol but overriding them with remote call logic

@@ -4,7 +4,8 @@ import typing
 
 from .connection.channel import Channel
 from .executor import Executor
-from ..camera.protocol import ServerProtocol
+from ..camera.protocol import CameraProtocol
+from ..supervisor.protocol import SupervisorProtocol
 
 
 async def start_server(handler, host: str = "127.0.0.1", port: int = 8000):
@@ -20,6 +21,11 @@ async def start_server(handler, host: str = "127.0.0.1", port: int = 8000):
 
         _channels[peer] = Channel(reader, writer, handler)
 
+        executor: CameraProtocol = Executor(
+            protocol=SupervisorProtocol, channel=_channels[peer]
+        )
+        handler.clients.append(executor)
+
     server = await asyncio.start_server(
         host=host, port=port, client_connected_cb=create_channel
     )
@@ -31,11 +37,11 @@ async def start_server(handler, host: str = "127.0.0.1", port: int = 8000):
 T = typing.TypeVar("T")
 
 
-async def connect(host: str, port: int, protocol: type[T]) -> T:
+async def connect(host: str, port: int, protocol: type[T], handler=None) -> T:
     reader, writer = await asyncio.open_connection(host=host, port=port)
     logging.info("Connection to the server established")
 
-    channel = Channel(reader, writer, handler=None)
-    executor: ServerProtocol = Executor(protocol=protocol, channel=channel)
+    channel = Channel(reader, writer, handler=handler)
+    executor: CameraProtocol = Executor(protocol=protocol, channel=channel)
 
     return executor

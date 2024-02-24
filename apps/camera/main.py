@@ -1,51 +1,57 @@
 import asyncio
 import datetime
 import logging
-from typing import Generator
+from typing import Optional
 
 from apps.camera.api import CameraAPI
-from lib.camera.protocol import ServerProtocol, CaptureStartData, FrameData
+from lib.camera.protocol import CameraProtocol, CaptureStartData
+from lib.supervisor.protocol import SupervisorProtocol
 from lib.rpc.server import start_server
 
 
-class Handler(ServerProtocol):
+class Handler(CameraProtocol):
     def __init__(self):
-        self._camera_api = CameraAPI()
-        self._is_capture_started = False
+        self.clients: list[SupervisorProtocol] = []
 
-    async def start(self, *, device_id: int) -> CaptureStartData:
-        if self._is_capture_started:
+        self._camera_api = CameraAPI()
+
+        self._capture_task: Optional[asyncio.Task] = None
+
+    async def metadata(self):
+        return await self._camera_api.metadata()
+
+    async def start(
+        self, *, device_id: int, width: int, height: int
+    ) -> CaptureStartData:
+        if self._capture_task:
             raise RuntimeError("Already started.")
 
-        self._camera_api.start()
-        self._is_capture_started = True
+        await self._camera_api.start(width=width, height=height)
+        self._capture_task = asyncio.create_task(self._capture_loop())
         return CaptureStartData(
             capture_time=datetime.datetime.now(), index=1, meta=dict(test="test")
         )
 
+    async def _capture_loop(self) -> None:
+        while True:
+            frame = await self._camera_api.get_frame()
+
+            logging.info("Sending frame callback")
+            await asyncio.gather(
+                *[item.on_frame_received(frame=frame) for item in self.clients]
+            )
+            await asyncio.sleep(0.1)
+
     async def stop(self) -> None:
-        self._camera_api.stop()
+        await self._camera_api.stop()
 
-        self._is_capture_started = False
-
-    async def iter_frames(self) -> Generator[FrameData, None, None]:
-        # if not self._is_capture_started:
-        #     raise RuntimeError("Capture not started")
-
-        for i in range(10):
-            yield FrameData(index=i, frame=b"123")
-
-        # for i in range(101):
-        #     frame = self._camera_api.get_frame()
-        #     yield FrameData(index=i, frame=bytes(frame.get_buffer().raw[:10]))
-        #
-        #     await asyncio.sleep(0)
+        self._capture_task.cancel()
 
 
 async def main():
     handler = Handler()
 
-    await start_server(handler)
+    await start_server(handler, host="0.0.0.0", port=8000)
 
 
 if __name__ == "__main__":

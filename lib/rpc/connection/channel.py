@@ -6,7 +6,7 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from lib.camera.protocol import ServerProtocol
+from lib.camera.protocol import CameraProtocol
 from lib.rpc.connection import MethodCall, MethodReturn
 
 
@@ -39,7 +39,7 @@ class Channel:
         self,
         reader: asyncio.StreamReader,
         writer: asyncio.StreamWriter,
-        handler: Optional[ServerProtocol],
+        handler: Optional[CameraProtocol],
     ):
         self.reader = reader
         self.writer = writer
@@ -119,7 +119,7 @@ class Channel:
             tcp_data = MethodCall.parse_raw(message.payload)
 
             # getting metadata of the methods to be able to unpack payload
-            method_meta = self.handler.metadata[tcp_data.method]
+            method_meta = self.handler.methods[tcp_data.method]
             arguments = method_meta.args_model.parse_raw(tcp_data.arguments)
 
             # actually executing what we have in handler

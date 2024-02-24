@@ -1,11 +1,8 @@
 import datetime
-import typing
 
 from pydantic import BaseModel
 
-from lib.rpc.decorators import MethodType, _init
-
-T = typing.TypeVar("T")
+from lib.rpc.protocol import RPCProtocol, method
 
 
 class CaptureStartData(BaseModel):
@@ -15,45 +12,29 @@ class CaptureStartData(BaseModel):
     meta: dict[str, str]
 
 
-class FrameData(BaseModel):
-    index: int
-    frame: bytes
+class Mode(BaseModel):
+    width: int
+    height: int
+
+    bpp: int
 
 
-class RPCProtocol(typing.Protocol):
-    metadata: dict[str, MethodType]
-
-    def __init_subclass__(cls, **kwargs):
-        if cls.mro()[1] != __class__:
-            return
-
-        cls.metadata = _init(prototype=cls)
+class Metadata(BaseModel):
+    name: str
+    modes: list[Mode]
 
 
-def method(func: T) -> T | MethodType:
-    setattr(func, "is_proto", True)
-    return func
-
-
-class ServerProtocol(RPCProtocol):
+class CameraProtocol(RPCProtocol):
     @method
-    async def start(self, *, device_id: int) -> CaptureStartData:
+    async def metadata(self) -> Metadata:
+        ...
+
+    @method
+    async def start(
+        self, *, device_id: int, width: int, height: int
+    ) -> CaptureStartData:
         ...
 
     @method
     async def stop(self) -> None:
         ...
-
-    @method
-    async def iter_frames(self) -> typing.AsyncIterable[FrameData]:
-        ...
-
-
-class CAMProtocol(RPCProtocol):
-    @method
-    async def call(self) -> typing.AsyncIterable[FrameData]:
-        ...
-
-
-class Test(CAMProtocol):
-    pass
