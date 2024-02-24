@@ -55,7 +55,7 @@ async def main(connections):
     )
     print("start", results)
 
-    await asyncio.sleep(10)
+    await asyncio.sleep(30)
 
     results = await asyncio.gather(*[api.stop() for api in executors])
     print("stop", results)

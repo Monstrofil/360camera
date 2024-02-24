@@ -30,7 +30,8 @@ class Executor(typing.Generic[T]):
     ):
         payload = member.args_model(**arguments)
         response = await self._channel.send_request(
-            MethodCall(method=method_name, arguments=payload.model_dump_json().encode())
+            MethodCall(method=method_name,
+                       arguments=payload.model_dump_json().encode())
             .model_dump_json()
             .encode()
             + b"\n"
@@ -41,6 +42,7 @@ class Executor(typing.Generic[T]):
 
         if isinstance(response, Iterator):
             return (
-                member.return_model.parse_raw(item).value async for item in response
+                member.return_model.parse_raw(item).value
+                async for item in response
             )
         return member.return_model.parse_raw(response).value
