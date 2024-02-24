@@ -3,9 +3,9 @@ import typing
 from functools import partial
 
 
-from lib.rpc.connection.channel import Channel, Iterator
-from lib.rpc.connection import MethodCall
-from lib.rpc.decorators import MethodType
+from camera360.lib.rpc.connection.channel import Channel, Iterator
+from camera360.lib.rpc.connection import MethodCall
+from camera360.lib.rpc.decorators import MethodType
 
 
 T = typing.TypeVar("T")

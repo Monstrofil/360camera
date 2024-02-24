@@ -3,10 +3,10 @@ import datetime
 import logging
 from typing import Optional
 
-from apps.camera.api import CameraAPI
-from lib.camera.protocol import CameraProtocol, CaptureStartData
-from lib.supervisor.protocol import SupervisorProtocol
-from lib.rpc.server import start_server
+from camera360.apps.camera.api import CameraAPI
+from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData
+from camera360.lib.supervisor.protocol import SupervisorProtocol
+from camera360.lib.rpc.server import start_server
 
 
 class Handler(CameraProtocol):
@@ -48,13 +48,17 @@ class Handler(CameraProtocol):
         self._capture_task.cancel()
 
 
-async def main():
+async def run():
     handler = Handler()
 
     await start_server(handler, host="0.0.0.0", port=8000)
 
 
-if __name__ == "__main__":
+def main():
     logging.basicConfig(level=logging.DEBUG, force=True)
 
-    asyncio.run(main())
+    asyncio.run(run())
+
+
+if __name__ == "__main__":
+    main()

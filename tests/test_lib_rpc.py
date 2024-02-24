@@ -3,7 +3,7 @@ from typing import List
 import pytest
 from pydantic.fields import FieldInfo
 
-from lib.rpc.decorators import serializable
+from camera360.lib.rpc.decorators import serializable
 
 
 @pytest.mark.xfail

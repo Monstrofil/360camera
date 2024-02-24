@@ -1,5 +1,0 @@
-ruff
-pydantic
-pytest
-typer
-click

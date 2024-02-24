@@ -1,0 +1,86 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "camera360"
+dynamic = ["version"]
+description = 'A set of core tools of 360 camera project.'
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+keywords = []
+authors = [
+  { name = "Oleksandr Shyshatskyi", email = "shalal545@gmail.com" },
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: Implementation :: CPython",
+]
+dependencies = []
+
+[project.urls]
+Documentation = "https://github.com/Monstrofil/360camera#readme"
+Issues = "https://github.com/Monstrofil/360camera/issues"
+Source = "https://github.com/Monstrofil/360camera"
+
+[project.scripts]
+camera-daemon = "camera360.apps.camera.main:main"
+camera-cli = "camera360.apps.camera.cli:main"
+supervisor-daemon = "camera360.apps.supervisor.main:main"
+
+[tool.hatch.version]
+path = "src/camera360/__about__.py"
+
+[tool.hatch.envs.default]
+dependencies = [
+  "coverage[toml]>=6.5",
+  "pytest",
+  "ruff",
+  "pydantic",
+  "pytest",
+  "typer",
+]
+[tool.hatch.envs.default.scripts]
+test = "pytest {args:tests}"
+test-cov = "coverage run -m pytest {args:tests}"
+cov-report = [
+  "- coverage combine",
+  "coverage report",
+]
+cov = [
+  "test-cov",
+  "cov-report",
+]
+
+[[tool.hatch.envs.all.matrix]]
+python = ["3.11", "3.12"]
+
+[tool.hatch.envs.types]
+dependencies = [
+  "mypy>=1.0.0",
+]
+[tool.hatch.envs.types.scripts]
+check = "mypy --install-types --non-interactive {args:src/camera360 tests}"
+
+[tool.coverage.run]
+source_pkgs = ["camera360", "tests"]
+branch = true
+parallel = true
+omit = [
+  "src/camera360/__about__.py",
+]
+
+[tool.coverage.paths]
+camera360 = ["src/camera360", "*/camera360/src/camera360"]
+tests = ["tests", "*/camera360/tests"]
+
+[tool.coverage.report]
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+]

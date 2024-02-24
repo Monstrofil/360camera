@@ -5,8 +5,8 @@ import types
 
 import typer
 
-from lib.camera.protocol import CameraProtocol
-from lib.rpc.server import connect
+from camera360.lib.camera.protocol import CameraProtocol
+from camera360.lib.rpc.server import connect
 
 
 class Application(CameraProtocol):
@@ -48,11 +48,11 @@ class Application(CameraProtocol):
 
 
 def main():
+    logging.basicConfig(level=logging.DEBUG, force=True)
+
     app = Application()
     app.run()
 
 
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.DEBUG, force=True)
-
     main()

@@ -2,7 +2,7 @@ import datetime
 
 from pydantic import BaseModel
 
-from lib.rpc.protocol import RPCProtocol, method
+from camera360.lib.rpc.protocol import RPCProtocol, method
 
 
 class CaptureStartData(BaseModel):

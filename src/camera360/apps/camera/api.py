@@ -5,8 +5,8 @@ import pygame
 
 import pygame.camera
 
-from lib.camera.protocol import Mode, Metadata
-from lib.supervisor.protocol import FrameData
+from camera360.lib.camera.protocol import Mode, Metadata
+from camera360.lib.supervisor.protocol import FrameData
 
 
 class CameraAPI:

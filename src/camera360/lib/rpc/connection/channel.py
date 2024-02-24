@@ -6,8 +6,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
-from lib.camera.protocol import CameraProtocol
-from lib.rpc.connection import MethodCall, MethodReturn
+from camera360.lib.camera.protocol import CameraProtocol
+from camera360.lib.rpc.connection import MethodCall, MethodReturn
 
 
 class Message(BaseModel):

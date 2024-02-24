@@ -1,9 +1,9 @@
 import asyncio
 import logging
 
-from lib.camera.protocol import CameraProtocol
-from lib.rpc.server import connect
-from lib.supervisor.protocol import SupervisorProtocol, FrameData
+from camera360.lib.camera.protocol import CameraProtocol
+from camera360.lib.rpc.server import connect
+from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData
 
 CONNECTIONS = [
     ("127.0.0.1", 8000),
@@ -42,7 +42,7 @@ async def connect_hosts(connections, handler):
     return executors
 
 
-async def main(connections):
+async def run(connections):
     handler = Handler()
 
     executors = await connect_hosts(connections, handler=handler)
@@ -61,6 +61,11 @@ async def main(connections):
     print("stop", results)
 
 
-if __name__ == "__main__":
+def main():
     logging.basicConfig(level=logging.DEBUG, force=True)
-    asyncio.run(main(CONNECTIONS))
+
+    asyncio.run(run(connections=CONNECTIONS))
+
+
+if __name__ == "__main__":
+    main()
