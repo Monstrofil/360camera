@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 
-from camera360.lib.rpc.protocol import RPCProtocol, method
+from ..rpc.protocol import RPCProtocol, method
 
 
 class FrameData(BaseModel):

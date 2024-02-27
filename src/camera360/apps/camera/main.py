@@ -21,12 +21,13 @@ class Handler(CameraProtocol):
         return await self._camera_api.metadata()
 
     async def start(
-        self, *, device_id: int, width: int, height: int
+        self, *, device_path: str, width: int, height: int
     ) -> CaptureStartData:
         if self._capture_task:
             raise RuntimeError("Already started.")
 
-        await self._camera_api.start(width=width, height=height)
+        await self._camera_api.start(path=device_path, width=width, height=height)
+
         self._capture_task = asyncio.create_task(self._capture_loop())
         return CaptureStartData(
             capture_time=datetime.datetime.now(), index=1, meta=dict(test="test")

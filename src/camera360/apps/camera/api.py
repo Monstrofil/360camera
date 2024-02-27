@@ -1,40 +1,58 @@
 import logging
 from typing import Optional
 
-import pygame
+from v4l2py import Device, device
 
-import pygame.camera
 
-from camera360.lib.camera.protocol import Mode, Metadata
+from camera360.apps.camera.rockchip import iter_media_devices, get_media_device
+from camera360.lib.camera.protocol import Metadata, Camera
 from camera360.lib.supervisor.protocol import FrameData
+
+class MenuControl:
+    pass
 
 
 class CameraAPI:
     def __init__(self):
-        self._cam: Optional[pygame.camera.Camera] = None
+        # with Device.from_id(11, legacy_controls=True) as device:
+        #     info: Info = device.info
+        #     # print(device.get_format(BufferType.VIDEO_CAPTURE_MPLANE))
+        #     # print('controls', device.controls)
+        #     # for control in device.controls:
+        #     #     print(control)
+        self._video_device: Optional[Device] = None
+        self._controls_device: Optional[Device] = None
         self.frame_id: int = 0
-
-        pygame.camera.init()
 
     async def metadata(self) -> Metadata:
         return Metadata(
-            name=pygame.camera.list_cameras()[0],
-            modes=[
-                Mode(width=640, height=480, bpp=12),
-                Mode(width=1024, height=768, bpp=12),
-            ],
+            devices=[
+                Camera(name=device.sensor_name, path=device.media_device, modes=[])
+                for device in iter_media_devices()
+            ]
         )
 
-    async def start(self, width: int, height: int):
-        all_webcams = pygame.camera.list_cameras()
-        self._cam = pygame.camera.Camera(all_webcams[0], (width, height))
-        self._cam.start()
+    async def start(self, path: str, width: int, height: int):
+        rockchip_media = get_media_device(media_device_path=path)
+
+        self._video_device = Device(rockchip_media.mainpath_device, read_write=True)
+        self._video_device.open()
+
+        self._controls_device = Device(rockchip_media.sensor_device, read_write=True)
+        self._controls_device.open()
+
+    async def controls(self):
+        if self._controls_device is None:
+            return None
+
+        return [MenuControl() for control in self._controls_device.controls.values()]
 
     async def stop(self):
-        self._cam.stop()
+        self._video_device.close()
+        self._controls_device.close()
 
     async def get_frame(self) -> FrameData:
-        frame = self._cam.get_image()
+        frame = self._video_device.get_image()
         logging.info("Got frame %s", frame.get_buffer().length)
 
         self.frame_id = self.frame_id + 1

@@ -19,9 +19,14 @@ class Mode(BaseModel):
     bpp: int
 
 
-class Metadata(BaseModel):
+class Camera(BaseModel):
     name: str
+    path: str
     modes: list[Mode]
+
+
+class Metadata(BaseModel):
+    devices: list[Camera]
 
 
 class CameraProtocol(RPCProtocol):
@@ -31,8 +36,12 @@ class CameraProtocol(RPCProtocol):
 
     @method
     async def start(
-        self, *, device_id: int, width: int, height: int
+        self, *, device_path: str, width: int, height: int
     ) -> CaptureStartData:
+        ...
+
+    @method
+    async def controls(self):
         ...
 
     @method

@@ -1,6 +1,6 @@
 import typing
 
-from camera360.lib.rpc.decorators import MethodType, _init
+from .decorators import MethodType, _init
 
 
 class RPCProtocol(typing.Protocol):

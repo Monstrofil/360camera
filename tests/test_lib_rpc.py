@@ -1,19 +1,35 @@
 from typing import List
-
-import pytest
-from pydantic.fields import FieldInfo
-
-from camera360.lib.rpc.decorators import serializable
+from unittest import mock
 
 
-@pytest.mark.xfail
-def test_rpc_metadata():
-    @serializable
-    class Protocol:
+from camera360.lib.rpc.decorators import MethodType
+from camera360.lib.rpc.protocol import RPCProtocol, method
+
+
+def test_protocol_subclass():
+    class DemoProtocol(RPCProtocol):
+        @method
         def init(self, arg1: str, arg2: List[str]) -> None:
+            pass
+
+        @method
+        def finish(self) -> int:
             ...
 
-    assert Protocol.metadata.init.model.model_fields == {
-        "arg1": FieldInfo(annotation=str, required=True),
-        "arg2": FieldInfo(annotation=List[str], required=True),
+        def not_a_method(self) -> int:
+            ...
+
+    assert DemoProtocol.methods == {
+        "init": MethodType(args_model=mock.ANY, return_model=None, streaming=False),
+        "finish": MethodType(
+            args_model=mock.ANY, return_model=mock.ANY, streaming=False
+        ),
     }
+
+    assert DemoProtocol.methods["init"].args_model(
+        arg1="argument1", arg2=["argument2"]
+    ).model_dump() == dict(arg1="argument1", arg2=["argument2"])
+
+    assert DemoProtocol.methods["finish"].return_model(value=123).model_dump() == dict(
+        value=123
+    )
