@@ -47,3 +47,7 @@ class CameraProtocol(RPCProtocol):
     @method
     async def stop(self) -> None:
         ...
+
+    @method
+    async def reset(self) -> None:
+        ...

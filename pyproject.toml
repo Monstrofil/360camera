@@ -44,6 +44,7 @@ dependencies = [
   "pydantic",
   "pytest",
   "typer",
+  "nicegui",
   "v4l2py @ git+https://github.com/Open360Camera/v4l2py",
   "pyrkaiq @ git+https://github.com/Monstrofil/pyrkaiq"
 ]

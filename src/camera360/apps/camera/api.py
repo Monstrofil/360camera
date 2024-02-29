@@ -1,18 +1,16 @@
 import logging
 from typing import Optional
 
-from v4l2py import Device, device
-
+from v4l2py import Device
 
 from camera360.apps.camera.rockchip import iter_media_devices, get_media_device
+from camera360.lib.camera import device
 from camera360.lib.camera.protocol import Metadata, Camera
 from camera360.lib.supervisor.protocol import FrameData
 
-class MenuControl:
-    pass
 
 
-class CameraAPI:
+class CameraAPI(device.API):
     def __init__(self):
         # with Device.from_id(11, legacy_controls=True) as device:
         #     info: Info = device.info
