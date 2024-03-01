@@ -11,7 +11,7 @@ from camera360.lib.rpc.decorators import MethodType
 T = typing.TypeVar("T")
 
 
-class Executor(typing.Generic[T]):
+class RemotePython(typing.Generic[T]):
     def __init__(self, protocol: T, channel: Channel):
         self._protocol = protocol
         self._channel = channel
@@ -21,6 +21,9 @@ class Executor(typing.Generic[T]):
 
             # copying methods from the protocol but overriding them with remote call logic
             self.__dict__[name] = partial(self._call_remote_method, member, name)
+
+    def __repr__(self):
+        return f"RemotePython[{self._protocol.__name__}] at {hex(id(self))}"
 
     async def _call_remote_method(
         self,

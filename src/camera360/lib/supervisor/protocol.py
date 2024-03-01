@@ -2,6 +2,7 @@ from typing import List
 
 from pydantic import BaseModel
 
+from ..camera.controls import BaseControl, AnyControl
 from ..rpc.protocol import RPCProtocol, method
 
 
@@ -29,4 +30,8 @@ class SupervisorProtocol(RPCProtocol):
 
     @method
     async def stop(self) -> None:
+        ...
+
+    @method
+    async def controls(self) -> List[AnyControl]:
         ...

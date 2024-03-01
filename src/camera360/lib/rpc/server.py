@@ -3,12 +3,15 @@ import logging
 import typing
 
 from .connection.channel import Channel
-from .executor import Executor
+from .executor import RemotePython
 from ..camera.protocol import CameraProtocol
 from ..supervisor.protocol import SupervisorProtocol
 
 
-async def start_server(handler, host: str = "127.0.0.1", port: int = 8000):
+async def start_server(
+        handler,
+        host: str = "127.0.0.1",
+        port: int = 8000):
     _channels: dict[tuple[str, int], Channel] = dict()
 
     async def create_channel(
@@ -21,10 +24,10 @@ async def start_server(handler, host: str = "127.0.0.1", port: int = 8000):
 
         _channels[peer] = Channel(reader, writer, handler)
 
-        executor: CameraProtocol = Executor(
+        remote: SupervisorProtocol = RemotePython(
             protocol=SupervisorProtocol, channel=_channels[peer]
         )
-        handler.clients.append(executor)
+        handler.clients.append(remote)
 
     server = await asyncio.start_server(
         host=host, port=port, client_connected_cb=create_channel
@@ -42,6 +45,6 @@ async def connect(host: str, port: int, protocol: type[T], handler=None) -> T:
     logging.info("Connection to the server established")
 
     channel = Channel(reader, writer, handler=handler)
-    executor: CameraProtocol = Executor(protocol=protocol, channel=channel)
+    executor: CameraProtocol = RemotePython(protocol=protocol, channel=channel)
 
     return executor

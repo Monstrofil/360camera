@@ -2,6 +2,7 @@ import asyncio
 import logging
 from typing import List
 
+from camera360.lib.camera.controls import BaseControl, Integer, AnyControl
 from camera360.lib.camera.protocol import CameraProtocol
 from camera360.lib.rpc.server import connect, start_server
 from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData, Client
@@ -21,8 +22,8 @@ class Handler(SupervisorProtocol):
         print("on_frame_received", frame)
 
     async def get_clients(self) -> List[Client]:
-        print(self.clients)
-        print(self.cameras)
+        print('self.clients', self.clients)
+        print('self.cameras', self.cameras)
         return [Client(name='Camera %s' % index)
                 for index, client in enumerate(self.cameras)]
 
@@ -36,6 +37,11 @@ class Handler(SupervisorProtocol):
     async def stop(self) -> None:
         await asyncio.gather(
             *[client.stop() for client in self.cameras])
+
+    async def controls(self) -> List[AnyControl]:
+        return [
+            Integer(name='Exposure', minimum=10, maximum=25, default=1),
+        ]
 
 
 async def connect_hosts(connections, handler):

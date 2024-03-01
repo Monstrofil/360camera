@@ -24,6 +24,9 @@ class Integer(BaseControl):
     control_type: typing.Literal['integer'] = 'integer'
 
 
+AnyControl = typing.Union[MenuItem, Integer]
+
+
 class ControlsModel(pydantic.BaseModel):
     controls: typing.List[typing.Union[MenuItem, Integer]] = \
         pydantic.Field(
