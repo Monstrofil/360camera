@@ -45,6 +45,7 @@ class Channel:
         self.writer = writer
         self.handler = handler
 
+        # todo: rename to is_connected or somthing like that
         self._is_dead = False
 
         self._request_id = 0
@@ -54,9 +55,16 @@ class Channel:
 
     async def _receive_messages_loop(self):
         while True:
-            raw_message = await self.reader.readline()
+            try:
+                raw_message = await self.reader.readline()
+            except ConnectionResetError:
+                logging.warning('Client disconnected')
+                break
+
+            # windows machines return empty strings when peer is offline
+            # we don't really care about the reason why somebody
+            # disconnected here, so just break the loop
             if raw_message == b"":
-                self._is_dead = True
                 break
 
             try:
@@ -64,9 +72,15 @@ class Channel:
             except Exception as e:
                 traceback.print_exception(e)
 
+        self._is_dead = True
+        for future in self._pending_requests.values():
+            future.set_exception(ConnectionResetError("Channel connection lost"))
+
     async def send_request(self, payload: bytes) -> Iterator | bytes:
+        if self._is_dead:
+            raise ConnectionResetError("Dead channel")
+
         request = Message(request_id=self._request_id, payload=payload)
-        logging.info("Sending message %s", request)
         self._pending_requests[request.request_id] = future = asyncio.Future()
         self._request_id += 1
 
@@ -83,7 +97,6 @@ class Channel:
 
     async def data_received(self, raw_message: bytes) -> None:
         message = Message.parse_raw(raw_message)
-        logging.info("Got message %s", message)
 
         if (
             message.response_id is not None
@@ -109,50 +122,34 @@ class Channel:
                 del self._pending_requests[message.response_id]
             else:
                 # getting metadata of the methods to be able to unpack payload
-                self._pending_requests.pop(message.response_id).set_result(
+                self._pending_requests.pop(
+                    message.response_id
+                ).set_result(
                     rpc_response.value
                 )
         else:
             logging.info("Got request with id {}".format(message.request_id))
-            logging.info("Request payload: {}".format(message.payload))
 
             tcp_data = MethodCall.parse_raw(message.payload)
 
             # getting metadata of the methods to be able to unpack payload
+            if self.handler is None:
+                return
+
             method_meta = self.handler.methods[tcp_data.method]
             arguments = method_meta.args_model.parse_raw(tcp_data.arguments)
 
             # actually executing what we have in handler
-            method = getattr(self.handler, tcp_data.method)(**arguments.dict())
+            try:
+                method = getattr(self.handler, tcp_data.method)(**arguments.dict())
+            except:
+                traceback.print_exc()
+                raise
 
             if isinstance(method, types.AsyncGeneratorType):
-                async for response in method:
-                    response_raw = (
-                        method_meta.return_model(value=response)
-                        .model_dump_json()
-                        .encode()
-                    )
-
-                    logging.info(
-                        "Request id={} yield={}".format(
-                            message.request_id, response_raw
-                        )
-                    )
-                    await self.send_response(
-                        message.request_id,
-                        MethodReturn(value=response_raw, type="yield")
-                        .model_dump_json()
-                        .encode(),
-                    )
-                await self.send_response(
-                    message.request_id,
-                    MethodReturn(value=None, type="stop_iteration")
-                    .model_dump_json()
-                    .encode(),
-                )
+                raise NotImplementedError
             else:
                 response = await method
-
                 if method_meta.return_model:
                     response_raw = (
                         method_meta.return_model(value=response)
@@ -162,9 +159,14 @@ class Channel:
                 else:
                     response_raw = None
 
-                logging.info(
-                    "Request id={} response={}".format(message.request_id, response_raw)
-                )
+                if response_raw:
+                    logging.info(
+                        "Request id={} response={}".format(
+                            message.request_id, response_raw[:50])
+                    )
+                else:
+                    logging.info('Request id={} finished'.format(message.request_id))
+
                 await self.send_response(
                     message.request_id,
                     MethodReturn(value=response_raw, type="return")

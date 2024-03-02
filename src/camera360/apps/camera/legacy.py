@@ -1,4 +1,9 @@
+import asyncio
+import logging
+import os
+import shlex
 import typing
+from pathlib import Path
 
 from camera360.lib.camera import device
 from camera360.lib.camera.controls import (
@@ -6,13 +11,82 @@ from camera360.lib.camera.controls import (
     MenuItem,
     Integer
 )
+from camera360.lib.camera.device import RawFrame
 from camera360.lib.camera.protocol import Metadata
-from camera360.lib.supervisor.protocol import FrameData
+
+
+
+class PreviewEncoder:
+    def __init__(self, dirname: str):
+        self._preview_pipeline = None
+        self._dirname = dirname
+
+    async def init(self):
+        os.makedirs(self._dirname, exist_ok=True)
+
+        self._preview_pipeline = await asyncio.create_subprocess_exec(
+            'gst-launch-1.0',
+            *shlex.split(
+                'fdsrc fd=0 '
+                '! queue '
+                '! image/jpeg, width=1000, height=1250 '
+                '! jpegdec '
+                '! video/x-raw, framerate=24/1 '
+                '! x264enc '
+                '! h264parse '
+                f'! hlssink2 '
+                    f'max-files=5 '
+                    f'target-duration=5 '
+                    f'location={self._dirname}/segment%05d.ts '
+                    f'playlist-location={self._dirname}/preview.m3u8'
+            ), stdin=asyncio.subprocess.PIPE)
+
+    async def fini(self):
+        self._preview_pipeline.stdin.close()
+
+    async def encode(self, buffer: bytes):
+        logging.info('Encondign buffer len=%s', len(buffer))
+        self._preview_pipeline.stdin.write(buffer)
+
+    async def get_file(self, filename: str):
+        with open(os.path.join(self._dirname, filename), 'rb') as f:
+            return f.read()
+
+
+class FakeEncoder:
+    def __init__(self, dirname='preview'):
+        self._dirname = dirname
+
+    async def init(self):
+        os.makedirs(self._dirname, exist_ok=True)
+
+        self._capture_pipeline = await asyncio.create_subprocess_exec(
+            'gst-launch-1.0',
+            *shlex.split(
+                'fdsrc fd=0 '
+                '! queue '
+                '! image/jpeg, width=1000, height=1250 '
+                '! jpegdec '
+                '! video/x-raw, framerate=24/1 '
+                '! x264enc '
+                '! h264parse '
+                '! mp4mux '
+                f'! filesink location={self._dirname}/v1.mp4'
+            ), stdin=asyncio.subprocess.PIPE)
+
+    async def fini(self):
+        self._capture_pipeline.stdin.close()
+
+    async def encode(self, buffer: bytes):
+        logging.info('Encondign buffer len=%s', len(buffer))
+        self._capture_pipeline.stdin.write(buffer)
+
 
 
 class FakeAPI(device.API):
+
     def __init__(self):
-        pass
+        self._frame_index = 0
 
     async def metadata(self) -> Metadata:
         return Metadata(devices=[])
@@ -25,5 +99,8 @@ class FakeAPI(device.API):
             Integer(name='Vertical Bars', minimum=10, maximum=25, default=1)
         ]
 
-    async def get_frame(self) -> FrameData:
-        return FrameData(index=1, frame=b'')
+    async def get_frame(self) -> RawFrame:
+        base_dir = Path(__file__).parent.absolute()
+
+        with open(base_dir / 'test.jpg', 'rb') as f:
+            return RawFrame(sequence=self._frame_index + 1, buffer=f.read())

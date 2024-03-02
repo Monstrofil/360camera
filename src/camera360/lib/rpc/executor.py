@@ -32,12 +32,16 @@ class RemotePython(typing.Generic[T]):
         **arguments,
     ):
         payload = member.args_model(**arguments)
-        response = await self._channel.send_request(
-            MethodCall(method=method_name, arguments=payload.model_dump_json().encode())
-            .model_dump_json()
-            .encode()
-            + b"\n"
-        )
+
+        try:
+            response = await self._channel.send_request(
+                MethodCall(method=method_name, arguments=payload.model_dump_json().encode())
+                .model_dump_json()
+                .encode()
+                + b"\n"
+            )
+        except ConnectionResetError:
+            return None
 
         if member.return_model is None:
             return None

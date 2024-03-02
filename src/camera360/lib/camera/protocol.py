@@ -51,3 +51,7 @@ class CameraProtocol(RPCProtocol):
     @method
     async def reset(self) -> None:
         ...
+
+    @method
+    async def preview(self, *, filename: str) -> bytes:
+        ...

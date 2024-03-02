@@ -3,6 +3,7 @@ import functools
 import logging
 import types
 
+import pydantic
 import typer
 
 from camera360.lib.camera.protocol import CameraProtocol
@@ -31,8 +32,10 @@ class Application(CameraProtocol):
                 print(item)
         elif method_result is None:
             return
-        else:
+        elif method_result is pydantic.BaseModel:
             print("result", method_result.dict())
+        else:
+            print("result", method_result)
 
     def _create_command_callback(self, name, future):
         @functools.wraps(future)

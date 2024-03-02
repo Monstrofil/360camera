@@ -27,7 +27,7 @@ async def start_server(
         remote: SupervisorProtocol = RemotePython(
             protocol=SupervisorProtocol, channel=_channels[peer]
         )
-        handler.clients.append(remote)
+        handler.supervisors.append(remote)
 
     server = await asyncio.start_server(
         host=host, port=port, client_connected_cb=create_channel
@@ -41,7 +41,8 @@ T = typing.TypeVar("T")
 
 
 async def connect(host: str, port: int, protocol: type[T], handler=None) -> T:
-    reader, writer = await asyncio.open_connection(host=host, port=port)
+    reader, writer = await asyncio.open_connection(
+        host=host, port=port, limit=10 * 1024 * 1024)
     logging.info("Connection to the server established")
 
     channel = Channel(reader, writer, handler=handler)

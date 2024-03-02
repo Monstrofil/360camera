@@ -1,11 +1,13 @@
 import asyncio
+import base64
 import logging
+from contextlib import contextmanager
 from typing import List
 
 from camera360.lib.camera.controls import BaseControl, Integer, AnyControl
 from camera360.lib.camera.protocol import CameraProtocol
 from camera360.lib.rpc.server import connect, start_server
-from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData, Client
+from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData, Client, Status, SystemStatus
 
 CONNECTIONS = [
     ("127.0.0.1", 8000),
@@ -15,33 +17,65 @@ CONNECTIONS = [
 
 class Handler(SupervisorProtocol):
     def __init__(self):
-        self.clients: list[SupervisorProtocol] = []
+        self.supervisors: list[SupervisorProtocol] = []
         self.cameras: list[CameraProtocol] = []
+
+        self._status = Status(
+            status=SystemStatus.idle
+        )
+
+    @contextmanager
+    def _status_transition(self, status: SystemStatus):
+        assert self._status.pending_status is None, \
+            "Pending status is already set"
+
+        self._status.pending_status = status
+
+        try:
+            yield
+        except:
+            self._status.pending_status = None
+            raise
+        else:
+            self._status.status = self._status.pending_status
+            self._status.pending_status = None
 
     async def on_frame_received(self, frame: FrameData) -> None:
         print("on_frame_received", frame)
 
     async def get_clients(self) -> List[Client]:
-        print('self.clients', self.clients)
+        print('self.clients', self.supervisors)
         print('self.cameras', self.cameras)
         return [Client(name='Camera %s' % index)
                 for index, client in enumerate(self.cameras)]
 
     async def start(self) -> None:
-        await asyncio.gather(*[client.start(
-            device_path='/dev/video0',
-            width=1920,
-            height=1080
-        ) for client in self.cameras])
+        with self._status_transition(SystemStatus.capture):
+            await asyncio.gather(*[client.start(
+                device_path='/dev/video0',
+                width=1920,
+                height=1080
+            ) for client in self.cameras])
 
     async def stop(self) -> None:
-        await asyncio.gather(
-            *[client.stop() for client in self.cameras])
+        with self._status_transition(SystemStatus.idle):
+            await asyncio.gather(
+                *[client.stop() for client in self.cameras])
 
     async def controls(self) -> List[AnyControl]:
         return [
             Integer(name='Exposure', minimum=10, maximum=25, default=1),
         ]
+
+    async def status(self) -> Status:
+        self._status.clients = [
+            Client(name='Camera %s' % index)
+            for index, client in enumerate(self.cameras)
+        ]
+        return self._status
+
+    async def preview(self, *, filename: str) -> bytes:
+        return await self.cameras[0].preview(filename=filename)
 
 
 async def connect_hosts(connections, handler):

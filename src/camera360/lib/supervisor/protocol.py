@@ -1,21 +1,37 @@
-from typing import List
+import enum
+from typing import List, Optional
 
+import pydantic
 from pydantic import BaseModel
 
-from ..camera.controls import BaseControl, AnyControl
+from ..camera.controls import AnyControl
 from ..rpc.protocol import RPCProtocol, method
 
 
 class FrameData(BaseModel):
     index: int
-    frame: bytes
 
 
 class Client(BaseModel):
     name: str
 
 
+class SystemStatus(enum.Enum):
+    idle = "idle"
+    capture = "capture"
+
+
+class Status(BaseModel):
+    status: SystemStatus = SystemStatus.idle
+    pending_status: Optional[SystemStatus] = None
+
+    clients: List[Client] = pydantic.Field(
+        default_factory=list)
+
+
+
 class SupervisorProtocol(RPCProtocol):
+
     @method
     async def on_frame_received(self, *, frame: FrameData) -> None:
         ...
@@ -34,4 +50,16 @@ class SupervisorProtocol(RPCProtocol):
 
     @method
     async def controls(self) -> List[AnyControl]:
+        ...
+
+    @method
+    async def status(self) -> Status:
+        ...
+
+    @method
+    async def events(self) -> None:
+        ...
+
+    @method
+    async def preview(self, *, filename: str) -> bytes:
         ...
