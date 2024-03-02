@@ -3,7 +3,7 @@ import typing
 from functools import partial
 
 
-from camera360.lib.rpc.connection.channel import Channel, Iterator
+from camera360.lib.rpc.connection.channel import Channel
 from camera360.lib.rpc.connection import MethodCall
 from camera360.lib.rpc.decorators import MethodType
 
@@ -43,11 +43,4 @@ class RemotePython(typing.Generic[T]):
         except ConnectionResetError:
             return None
 
-        if member.return_model is None:
-            return None
-
-        if isinstance(response, Iterator):
-            return (
-                member.return_model.parse_raw(item).value async for item in response
-            )
-        return member.return_model.parse_raw(response).value
+        return member.return_model.model_validate_json(response).value

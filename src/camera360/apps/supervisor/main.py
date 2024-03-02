@@ -1,10 +1,9 @@
 import asyncio
-import base64
 import logging
 from contextlib import contextmanager
 from typing import List
 
-from camera360.lib.camera.controls import BaseControl, Integer, AnyControl
+from camera360.lib.camera.controls import Integer, AnyControl
 from camera360.lib.camera.protocol import CameraProtocol
 from camera360.lib.rpc.server import connect, start_server
 from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData, Client, Status, SystemStatus
@@ -112,7 +111,10 @@ async def run(connections):
 
     handler.cameras = executors
 
-    await start_server(handler, host='127.0.0.1', port=8181)
+    server = await start_server(handler, host='127.0.0.1', port=8181)
+
+    async with server:
+        await server.serve_forever()
 
 
 def main():

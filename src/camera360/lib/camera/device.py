@@ -3,7 +3,6 @@ from dataclasses import dataclass
 
 from .controls import BaseControl
 from .protocol import Metadata
-from camera360.lib.supervisor.protocol import FrameData
 
 
 @dataclass

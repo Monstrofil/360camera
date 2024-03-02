@@ -33,7 +33,7 @@ class Application(CameraProtocol):
         elif method_result is None:
             return
         elif method_result is pydantic.BaseModel:
-            print("result", method_result.dict())
+            print("result", method_result.model_dump())
         else:
             print("result", method_result)
 

@@ -1,5 +1,4 @@
 import base64
-import os
 from typing import Optional
 
 from nicegui import ui, app
@@ -58,7 +57,7 @@ async def main():
     async def on_tick():
         nonlocal status
         new_status = await supervisor.status()
-        status.__dict__.update(new_status.dict())
+        status.__dict__.update(new_status.model_dump())
 
     ui.timer(0.5, on_tick)
 

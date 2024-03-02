@@ -8,11 +8,12 @@ from typing import Optional
 # from camera360.apps.camera.api import CameraAPI
 from camera360.apps.camera.legacy import FakeAPI, FakeEncoder, PreviewEncoder
 from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData
+from camera360.lib.rpc.protocol import RPCHandler
 from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData
 from camera360.lib.rpc.server import start_server
 
 
-class Handler(CameraProtocol):
+class Handler(RPCHandler, CameraProtocol):
     def __init__(self):
         self.supervisors: list[SupervisorProtocol] = []
 
@@ -93,7 +94,10 @@ class Handler(CameraProtocol):
 async def run():
     handler = Handler()
 
-    await start_server(handler, host="0.0.0.0", port=8000)
+    server = await start_server(handler, host="0.0.0.0", port=8000)
+
+    async with server:
+        await server.serve_forever()
 
 
 def main():

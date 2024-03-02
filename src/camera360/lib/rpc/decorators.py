@@ -11,10 +11,9 @@ import pydantic
 class MethodType:
     args_model: type[pydantic.BaseModel]
     return_model: type[pydantic.BaseModel]
-    streaming: bool
 
 
-def _process(name: str, func: types.MethodType):
+def _process_method(model_name: str, func: types.MethodType):
     logging.debug("Processing method %s", func)
 
     argspec = inspect.getfullargspec(func)
@@ -26,31 +25,27 @@ def _process(name: str, func: types.MethodType):
         if argname != "return"
     }
     args_model = pydantic.create_model(
-        name, **fields, __module__=func.__class__.__name__
+        model_name, **fields, __module__=str(func.__class__.__name__)
     )
 
     return_type = argspec.annotations.get("return")
-    if return_type is not None:
-        if return_type.__name__ == "AsyncIterable":
-            value_type = return_type.__args__[0]
-            streaming = True
-        else:
-            value_type = return_type
-            streaming = False
 
-        return_model = pydantic.create_model(
-            name,
-            **{
-                "value": (value_type, ...),
-            },
-            __module__=func.__class__.__name__,
-        )
-    else:
-        return_model = None
-        streaming = False
+    # special case when method returns None
+    # pydantic needs type(None) which is NoneType
+    if return_type is None:
+        return_type = types.NoneType
+
+    return_model = pydantic.create_model(
+        model_name,
+        **{
+            "value": (return_type, ...),
+        },
+        __module__=str(func.__class__.__name__),
+    )
 
     model = MethodType(
-        args_model=args_model, return_model=return_model, streaming=streaming
+        args_model=args_model,
+        return_model=return_model,
     )
     return model
 
@@ -58,14 +53,12 @@ def _process(name: str, func: types.MethodType):
 def _init(prototype):
     metadata = dict()
 
-    for name, member in inspect.getmembers(prototype):
-        if not inspect.isfunction(member):
-            continue
+    is_rpc_method = lambda member: inspect.isfunction(member) \
+                                   and getattr(member, "is_proto", False)
 
-        if not getattr(member, "is_proto", False):
-            continue
-
-        metadata[name] = _process(name, member)
+    for name, method in inspect.getmembers(
+            prototype, predicate=is_rpc_method):
+        metadata[name] = _process_method(name, method)
     return metadata
 
 
