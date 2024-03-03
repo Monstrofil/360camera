@@ -18,7 +18,7 @@ class Handler(RPCHandler, CameraProtocol):
         self.supervisors: list[SupervisorProtocol] = []
 
         self._camera_api = FakeAPI()
-        self._preview_encoder = PreviewEncoder('preview')
+        self._preview_encoder = PreviewEncoder("preview")
         self._encoder = FakeEncoder()
 
         self._capture_task: Optional[asyncio.Task] = None
@@ -57,12 +57,13 @@ class Handler(RPCHandler, CameraProtocol):
             logging.info("Sending frame callback")
             try:
                 await asyncio.gather(
-                    *[item.on_frame_received(frame=FrameData(
-                        index=frame.sequence))
-                      for item in self.supervisors]
+                    *[
+                        item.on_frame_received(frame=FrameData(index=frame.sequence))
+                        for item in self.supervisors
+                    ]
                 )
             except ConnectionResetError:
-                logging.warning('Unable to deliver callback')
+                logging.warning("Unable to deliver callback")
                 pass
             await asyncio.sleep(0.1)
 
@@ -85,10 +86,9 @@ class Handler(RPCHandler, CameraProtocol):
 
     async def preview(self, filename: str) -> bytes:
         try:
-            return base64.encodebytes(
-                await self._preview_encoder.get_file(filename))
+            return base64.encodebytes(await self._preview_encoder.get_file(filename))
         except FileNotFoundError:
-            return b''
+            return b""
 
 
 async def run():

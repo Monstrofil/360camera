@@ -9,7 +9,6 @@ from camera360.lib.camera.protocol import Metadata, Camera
 from camera360.lib.supervisor.protocol import FrameData
 
 
-
 class CameraAPI(device.API):
     def __init__(self):
         # with Device.from_id(11, legacy_controls=True) as device:
@@ -43,7 +42,7 @@ class CameraAPI(device.API):
         if self._controls_device is None:
             return None
 
-        return [MenuControl() for control in self._controls_device.controls.values()]
+        return ["MenuControl" for control in self._controls_device.controls.values()]
 
     async def stop(self):
         self._video_device.close()

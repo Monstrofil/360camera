@@ -10,15 +10,12 @@ from ..camera.protocol import CameraProtocol
 from ..supervisor.protocol import SupervisorProtocol
 
 
-async def start_server(
-        handler: RPCHandler,
-        host: str = "127.0.0.1",
-        port: int = 8000):
+async def start_server(handler: RPCHandler, host: str = "127.0.0.1", port: int = 8000):
     async def create_channel(
-            reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+        reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ):
         peer = writer.transport.get_extra_info("peername")
-        logging.info('Creating channel %s', peer)
+        logging.info("Creating channel %s", peer)
 
         channel = Channel(reader, writer, handler)
 
@@ -41,10 +38,11 @@ T = typing.TypeVar("T")
 
 @contextlib.asynccontextmanager
 async def connect(
-        host: str, port: int,
-        protocol: type[T], handler=None) -> typing.AsyncContextManager[T]:
+    host: str, port: int, protocol: type[T], handler=None
+) -> typing.AsyncContextManager[T]:
     reader, writer = await asyncio.open_connection(
-        host=host, port=port, limit=10 * 1024 * 1024)
+        host=host, port=port, limit=10 * 1024 * 1024
+    )
     logging.info("Connection to the server established")
 
     channel = Channel(reader, writer, handler=handler)

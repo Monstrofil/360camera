@@ -53,11 +53,11 @@ def _process_method(model_name: str, func: types.MethodType):
 def _init(prototype):
     metadata = dict()
 
-    is_rpc_method = lambda member: inspect.isfunction(member) \
-                                   and getattr(member, "is_proto", False)
+    is_rpc_method = lambda member: inspect.isfunction(member) and getattr(
+        member, "is_proto", False
+    )
 
-    for name, method in inspect.getmembers(
-            prototype, predicate=is_rpc_method):
+    for name, method in inspect.getmembers(prototype, predicate=is_rpc_method):
         metadata[name] = _process_method(name, method)
     return metadata
 

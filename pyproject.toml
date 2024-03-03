@@ -45,6 +45,7 @@ dependencies = [
   "pytest",
   "typer",
   "nicegui",
+  "pytest-asyncio",
   "v4l2py @ git+https://github.com/Open360Camera/v4l2py",
   "pyrkaiq @ git+https://github.com/Monstrofil/pyrkaiq"
 ]

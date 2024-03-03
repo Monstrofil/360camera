@@ -6,15 +6,15 @@ from functools import partial
 from camera360.lib.rpc.connection.channel import Channel
 from camera360.lib.rpc.connection import MethodCall
 from camera360.lib.rpc.decorators import MethodType
-
+from camera360.lib.rpc.protocol import RPCProtocol
 
 T = typing.TypeVar("T")
 
 
 class RemotePython(typing.Generic[T]):
     def __init__(self, protocol: T, channel: Channel):
-        self._protocol = protocol
-        self._channel = channel
+        self._protocol: RPCProtocol = protocol
+        self._channel: Channel = channel
 
         for name, member in self._protocol.methods.items():
             logging.debug("Processing method %s", member)
@@ -33,14 +33,11 @@ class RemotePython(typing.Generic[T]):
     ):
         payload = member.args_model(**arguments)
 
-        try:
-            response = await self._channel.send_request(
-                MethodCall(method=method_name, arguments=payload.model_dump_json().encode())
-                .model_dump_json()
-                .encode()
-                + b"\n"
-            )
-        except ConnectionResetError:
-            return None
+        response = await self._channel.send_request(
+            MethodCall(method=method_name, arguments=payload.model_dump_json().encode())
+            .model_dump_json()
+            .encode()
+            + b"\n"
+        )
 
         return member.return_model.model_validate_json(response).value
