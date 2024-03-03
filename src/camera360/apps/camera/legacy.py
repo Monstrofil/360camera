@@ -16,6 +16,8 @@ class PreviewEncoder:
         self._preview_pipeline = None
         self._dirname = dirname
 
+        self._preview_pipeline: typing.Optional[asyncio.subprocess.Process] = None
+
     async def init(self):
         os.makedirs(self._dirname, exist_ok=True)
 
@@ -23,10 +25,9 @@ class PreviewEncoder:
             "gst-launch-1.0",
             *shlex.split(
                 "fdsrc fd=0 "
-                "! queue "
                 "! image/jpeg, width=1000, height=1250 "
                 "! jpegdec "
-                "! video/x-raw, framerate=24/1 "
+                "! video/x-raw, framerate=10/1 "
                 "! x264enc "
                 "! h264parse "
                 f"! hlssink2 "
@@ -39,7 +40,12 @@ class PreviewEncoder:
         )
 
     async def fini(self):
-        self._preview_pipeline.stdin.close()
+        if self._preview_pipeline:
+            self._preview_pipeline.stdin.close()
+
+        logging.info('Waiting for the capture process to finish')
+        await self._preview_pipeline.wait()
+        self._preview_pipeline = None
 
     async def encode(self, buffer: bytes):
         logging.info("Encondign buffer len=%s", len(buffer))
@@ -53,6 +59,7 @@ class PreviewEncoder:
 class FakeEncoder:
     def __init__(self, dirname="preview"):
         self._dirname = dirname
+        self._capture_pipeline: typing.Optional[asyncio.subprocess.Process] = None
 
     async def init(self):
         os.makedirs(self._dirname, exist_ok=True)
@@ -61,10 +68,9 @@ class FakeEncoder:
             "gst-launch-1.0",
             *shlex.split(
                 "fdsrc fd=0 "
-                "! queue "
                 "! image/jpeg, width=1000, height=1250 "
                 "! jpegdec "
-                "! video/x-raw, framerate=24/1 "
+                "! video/x-raw, framerate=10/1 "
                 "! x264enc "
                 "! h264parse "
                 "! mp4mux "
@@ -74,7 +80,12 @@ class FakeEncoder:
         )
 
     async def fini(self):
-        self._capture_pipeline.stdin.close()
+        if self._capture_pipeline:
+            self._capture_pipeline.stdin.close()
+
+        logging.info('Waiting for the capture process to finish')
+        await self._capture_pipeline.wait()
+        self._capture_pipeline = None
 
     async def encode(self, buffer: bytes):
         logging.info("Encondign buffer len=%s", len(buffer))

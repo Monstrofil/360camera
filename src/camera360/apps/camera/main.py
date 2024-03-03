@@ -88,7 +88,10 @@ class Handler(RPCHandler, CameraProtocol):
         try:
             return base64.encodebytes(await self._preview_encoder.get_file(filename))
         except FileNotFoundError:
-            return b""
+            return base64.encodebytes(b"#EXTM3U\n"
+                    b"#EXT-X-VERSION:3\n"
+                    b"#EXT-X-MEDIA-SEQUENCE:0\n"
+                    b"#EXT-X-TARGETDURATION:6\n")
 
 
 async def run():

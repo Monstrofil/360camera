@@ -40,13 +40,32 @@ T = typing.TypeVar("T")
 async def connect(
     host: str, port: int, protocol: type[T], handler=None
 ) -> typing.AsyncContextManager[T]:
-    reader, writer = await asyncio.open_connection(
-        host=host, port=port, limit=10 * 1024 * 1024
-    )
-    logging.info("Connection to the server established")
+    conn = Connection(host, port)
+    executor = await conn.connect(protocol, handler)
 
-    channel = Channel(reader, writer, handler=handler)
-    executor: CameraProtocol = RemotePython(protocol=protocol, channel=channel)
-
-    async with channel:
+    async with conn.channel:
         yield executor
+
+
+class Connection:
+    def __init__(self, host: str, port: int):
+        self.host = host
+        self.port = port
+
+        self.channel = None
+
+    async def connect(self, protocol: type[T], handler: typing.Optional[RPCHandler]) -> T:
+        reader, writer = await asyncio.open_connection(
+            host=self.host, port=self.port, limit=10 * 1024 * 1024
+        )
+        logging.info("Connection to the server established")
+
+        self.channel = Channel(reader, writer, handler=handler)
+        executor: T = RemotePython(protocol=protocol, channel=self.channel)
+
+        await self.channel.start()
+
+        return executor
+
+    async def disconnect(self):
+        await self.channel.close()

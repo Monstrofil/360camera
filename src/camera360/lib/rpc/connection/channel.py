@@ -34,15 +34,19 @@ class Channel:
         self._request_id = 0
         self._pending_requests: dict[int, asyncio.Future] = {}
 
-    def on_loop_done(self, future: asyncio.Future):
+    def on_loop_done(self, future: asyncio.Task):
         print("done")
 
     async def __aenter__(self):
+        return await self.start()
+
+    async def start(self):
         self._loop = asyncio.create_task(self._receive_messages_loop())
         self._loop.add_done_callback(self.on_loop_done)
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def close(self):
+        logging.info("Shutting down channel")
         self._loop.cancel()
         self.writer.close()
         self._is_dead = True
@@ -54,6 +58,9 @@ class Channel:
             await self._loop
         except asyncio.CancelledError:
             pass
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return await self.close()
 
     async def serve_forever(self):
         await self._receive_messages_loop()

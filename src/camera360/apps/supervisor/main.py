@@ -5,7 +5,8 @@ from typing import List
 
 from camera360.lib.camera.controls import Integer, AnyControl
 from camera360.lib.camera.protocol import CameraProtocol
-from camera360.lib.rpc.server import connect, start_server
+from camera360.lib.rpc.protocol import RPCHandler
+from camera360.lib.rpc.server import connect, start_server, Connection
 from camera360.lib.supervisor.protocol import (
     SupervisorProtocol,
     FrameData,
@@ -20,12 +21,13 @@ CONNECTIONS = [
 ]
 
 
-class Handler(SupervisorProtocol):
+class Handler(RPCHandler, SupervisorProtocol):
     def __init__(self):
         self.supervisors: list[SupervisorProtocol] = []
         self.cameras: list[CameraProtocol] = []
 
         self._status = Status(status=SystemStatus.idle)
+        super().__init__()
 
     @contextmanager
     def _status_transition(self, status: SystemStatus):
@@ -89,11 +91,13 @@ async def connect_hosts(connections, handler):
     while pending_connections:
         for index, (host, port) in enumerate(pending_connections):
             try:
-                executor = await connect(
-                    host=host, port=port, protocol=CameraProtocol, handler=handler
-                )
-                await executor.reset()
-                executors.append(executor)
+                connection = Connection(
+                    host=host, port=port)
+                remote = await connection.connect(
+                    protocol=CameraProtocol, handler=handler)
+
+                await remote.reset()
+                executors.append(remote)
             except ConnectionRefusedError:
                 logging.info("%s:%d is still unreachable", host, port)
                 continue

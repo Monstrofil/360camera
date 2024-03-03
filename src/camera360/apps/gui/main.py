@@ -5,7 +5,7 @@ from nicegui import ui, app
 from fastapi import Response
 
 from camera360.apps.gui.controls import create_control
-from camera360.lib.rpc.server import connect
+from camera360.lib.rpc.server import connect, Connection
 from camera360.lib.supervisor.protocol import SupervisorProtocol, SystemStatus
 
 supervisor: Optional[SupervisorProtocol] = None
@@ -13,9 +13,10 @@ supervisor: Optional[SupervisorProtocol] = None
 
 async def handle_startup():
     global supervisor
-    supervisor = await connect(
-        host="127.0.0.1", port=8181, protocol=SupervisorProtocol, handler=None
-    )
+    connection = Connection(host="127.0.0.1", port=8181)
+
+    supervisor = await connection.connect(
+        protocol=SupervisorProtocol, handler=None)
     print("Connected to %s" % supervisor)
 
 
@@ -24,7 +25,7 @@ app.on_startup(handle_startup)
 
 def camera_tab_content():
     ui.label("Video stream")
-    ui.video(src="//localhost").classes("w-6/12")
+    ui.video(src="//localhost", autoplay=True, muted=True).classes("w-6/12")
     ui.separator()
 
     ui.label("Controls")
@@ -49,7 +50,7 @@ async def main():
             hls.loadSource('/video/stream/preview.m3u8');
             hls.attachMedia(video);
             hls.on(Hls.Events.MANIFEST_PARSED,function() {
-                element.play();
+                video.play();
             });
           }
         }</script>""")
@@ -91,6 +92,8 @@ async def main():
             with ui.card().classes("w-6/12") as card:
                 video = ui.video(
                     src="#",
+                    autoplay=True,
+                    muted=True
                 ).classes("w-full")
                 ui.run_javascript(
                     f'attachHls({video.id}, "/video/stream/playlist.m3u8");'
