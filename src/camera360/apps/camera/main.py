@@ -5,8 +5,8 @@ import logging
 import traceback
 from typing import Optional
 
-# from camera360.apps.camera.api import CameraAPI
 from camera360.apps.camera.legacy import FakeAPI, FakeEncoder, PreviewEncoder
+from camera360.apps.camera.settings import settings
 from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData
 from camera360.lib.rpc.protocol import RPCHandler
 from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData
@@ -22,6 +22,7 @@ class Handler(RPCHandler, CameraProtocol):
         self._encoder = FakeEncoder()
 
         self._capture_task: Optional[asyncio.Task] = None
+        super().__init__()
 
     async def metadata(self):
         return await self._camera_api.metadata()
@@ -97,7 +98,7 @@ class Handler(RPCHandler, CameraProtocol):
 async def run():
     handler = Handler()
 
-    server = await start_server(handler, host="0.0.0.0", port=8000)
+    server = await start_server(handler, host=settings.host, port=settings.port)
 
     async with server:
         await server.serve_forever()

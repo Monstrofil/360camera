@@ -60,7 +60,7 @@ async def main():
         new_status = await supervisor.status()
         status.__dict__.update(new_status.model_dump())
 
-    ui.timer(0.5, on_tick)
+    ui.timer(1, on_tick)
 
     status = await supervisor.status()
 

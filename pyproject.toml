@@ -42,6 +42,7 @@ dependencies = [
   "pytest",
   "ruff",
   "pydantic",
+  "pydantic-settings",
   "pytest",
   "typer",
   "nicegui",
