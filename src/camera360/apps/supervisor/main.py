@@ -1,7 +1,7 @@
 import asyncio
 import logging
 from contextlib import contextmanager
-from typing import List
+from typing import List, Any
 
 from camera360.lib.camera.controls import Integer, AnyControl
 from camera360.lib.camera.protocol import CameraProtocol
@@ -27,6 +27,11 @@ class Handler(RPCHandler, SupervisorProtocol):
         self.cameras: list[CameraProtocol] = []
 
         self._status = Status(status=SystemStatus.idle)
+
+        self._controls = [
+            Integer(name="Exposure", value=11, minimum=10, maximum=25, default=11),
+            Integer(name="Framerate", value=2, minimum=1, maximum=10, default=1, step=1),
+        ]
         super().__init__()
 
     @contextmanager
@@ -48,8 +53,6 @@ class Handler(RPCHandler, SupervisorProtocol):
         print("on_frame_received", frame)
 
     async def get_clients(self) -> List[Client]:
-        print("self.clients", self.supervisors)
-        print("self.cameras", self.cameras)
         return [
             Client(name="Camera %s" % index)
             for index, client in enumerate(self.cameras)
@@ -69,9 +72,14 @@ class Handler(RPCHandler, SupervisorProtocol):
             await asyncio.gather(*[client.stop() for client in self.cameras])
 
     async def controls(self) -> List[AnyControl]:
-        return [
-            Integer(name="Exposure", minimum=10, maximum=25, default=1),
-        ]
+        return self._controls[:]
+
+    async def set_controls(self, values: dict[str, Any]) -> None:
+        for control in self._controls:
+            if control.name not in values:
+                continue
+
+            control.value = values[control.name]
 
     async def status(self) -> Status:
         self._status.clients = [
@@ -116,7 +124,6 @@ async def run(connections):
     executors = await connect_hosts(connections, handler=handler)
 
     results = await asyncio.gather(*[api.metadata() for api in executors])
-    print("metadata", results)
 
     handler.cameras = executors
 

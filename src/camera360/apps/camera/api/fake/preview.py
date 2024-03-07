@@ -19,7 +19,7 @@ class PreviewEncoder:
             "gst-launch-1.0",
             *shlex.split(
                 "fdsrc fd=0 "
-                "! image/jpeg, width=1000, height=1250 "
+                "! image/jpeg, width=378, height=378 "
                 "! jpegdec "
                 "! video/x-raw, framerate=10/1 "
                 "! x264enc "

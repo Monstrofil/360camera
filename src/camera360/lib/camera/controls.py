@@ -6,7 +6,10 @@ import pydantic
 class BaseControl(pydantic.BaseModel):
     name: str
 
+    value: typing.Any
     control_type: str
+
+    description: str = ''
 
 
 class MenuItem(BaseControl):
@@ -16,8 +19,11 @@ class MenuItem(BaseControl):
 
 
 class Integer(BaseControl):
+    value: int
+
     minimum: int = 10
     maximum: int = 20
+    step: int = 1
 
     default: int = 5
 

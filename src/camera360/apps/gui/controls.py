@@ -14,19 +14,27 @@ def menuoption(control: MenuItem, on_change=None) -> None:
 
 def integer(control: Integer, on_change=None) -> None:
     ui.label(control.name)
+    ui.label(control.description)
+
+    async def on_save():
+        await on_change(input.value)
 
     with ui.row():
-        ui.label("Min = %s" % control.minimum)
         input = ui.number(
-            value=30, min=control.minimum, max=control.maximum, on_change=on_change
+            value=control.value,
+            min=control.minimum,
+            max=control.maximum,
+            step=control.step
         )
-        ui.label("Max = %s" % control.maximum)
+
+        with ui.button(on_click=on_save).style('height: 100%') as btn:
+            ui.icon('save')
 
 
 def create_control(control: BaseControl, on_change: Callable) -> None:
     callable = _type_to_control[control.control_type]
 
-    with ui.card():
+    with ui.card().classes("w-4/12"):
         callable(control, on_change=on_change)
 
 

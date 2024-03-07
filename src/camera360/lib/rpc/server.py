@@ -54,7 +54,10 @@ class Connection:
 
         self.channel = None
 
-    async def connect(self, protocol: type[T], handler: typing.Optional[RPCHandler]) -> T:
+    async def connect(
+            self,
+            protocol: type[T],
+            handler: typing.Optional[RPCHandler]) -> T:
         reader, writer = await asyncio.open_connection(
             host=self.host, port=self.port, limit=10 * 1024 * 1024
         )
@@ -63,9 +66,18 @@ class Connection:
         self.channel = Channel(reader, writer, handler=handler)
         executor: T = RemotePython(protocol=protocol, channel=self.channel)
 
-        await self.channel.start()
+        await self.channel.start(on_lost_connection_cb=self.on_lost_connection)
 
         return executor
 
+    async def wait_for_disconnect(self):
+        if self.channel is None:
+            raise ValueError("No connection to server")
+
+        await self.channel.on_disconnect_event.wait()
+
     async def disconnect(self):
         await self.channel.close()
+
+    async def on_lost_connection(self):
+        ...

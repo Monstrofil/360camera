@@ -20,8 +20,10 @@ class Handler(RPCHandler, CameraProtocol):
         self.supervisors: list[SupervisorProtocol] = []
 
         self._camera_api = FakeDevice()
-        self._preview_encoder = PreviewEncoder("preview")
-        self._encoder = FakeEncoder()
+        self._preview_encoder = PreviewEncoder(
+            dirname=settings.get_preview_dir())
+        self._encoder = FakeEncoder(
+            dirname=settings.get_video_dir())
 
         self._capture_task: Optional[asyncio.Task] = None
         super().__init__()
@@ -88,13 +90,11 @@ class Handler(RPCHandler, CameraProtocol):
             await self.stop()
 
     async def preview(self, filename: str) -> bytes:
-        try:
-            return base64.encodebytes(await self._preview_encoder.get_file(filename))
-        except FileNotFoundError:
-            return base64.encodebytes(b"#EXTM3U\n"
-                    b"#EXT-X-VERSION:3\n"
-                    b"#EXT-X-MEDIA-SEQUENCE:0\n"
-                    b"#EXT-X-TARGETDURATION:6\n")
+        while True:
+            try:
+                return base64.encodebytes(await self._preview_encoder.get_file(filename))
+            except FileNotFoundError:
+                await asyncio.sleep(0.2)
 
 
 async def run():

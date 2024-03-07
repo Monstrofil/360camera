@@ -33,21 +33,26 @@ class Channel:
 
         self._request_id = 0
         self._pending_requests: dict[int, asyncio.Future] = {}
+        self.on_disconnect_event = asyncio.Event()
 
-    def on_loop_done(self, future: asyncio.Task):
-        print("done")
+        self._loop: Optional[asyncio.Task] = None
+
+    def _on_receive_loop_done(self, future: asyncio.Task):
+        self.on_disconnect_event.set()
 
     async def __aenter__(self):
         return await self.start()
 
-    async def start(self):
-        self._loop = asyncio.create_task(self._receive_messages_loop())
-        self._loop.add_done_callback(self.on_loop_done)
+    async def start(self, on_lost_connection_cb=None):
+        if self._loop is None:
+            self._loop = asyncio.create_task(self._receive_messages_loop())
+            self._loop.add_done_callback(self._on_receive_loop_done)
         return self
 
     async def close(self):
         logging.info("Shutting down channel")
         self._loop.cancel()
+
         self.writer.close()
         self._is_dead = True
 
@@ -58,6 +63,8 @@ class Channel:
             await self._loop
         except asyncio.CancelledError:
             pass
+        finally:
+            self._loop = None
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         return await self.close()

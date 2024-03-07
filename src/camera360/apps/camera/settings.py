@@ -1,4 +1,5 @@
 import enum
+import os.path
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Literal
@@ -32,10 +33,18 @@ class Settings(BaseSettings):
 
     device: Literal['fake', 'v4l2_rockchip_v3'] = "fake"
 
+    storage_path: str = ""
+
     # Current environment
     environment: str = "dev"
 
     log_level: LogLevel = LogLevel.INFO
+
+    def get_preview_dir(self) -> str:
+        return os.path.join(self.storage_path, "preview")
+
+    def get_video_dir(self) -> str:
+        return os.path.join(self.storage_path, "video")
 
     model_config = SettingsConfigDict(
         env_file=".env",

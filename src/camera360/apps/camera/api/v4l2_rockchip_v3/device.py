@@ -3,7 +3,8 @@ from typing import Optional
 
 from v4l2py import Device
 
-from camera360.apps.camera.rockchip import iter_media_devices, get_media_device
+from camera360.lib.camera.device import RawFrame
+from .rockchip import iter_media_devices, get_media_device
 from camera360.lib.camera import device
 from camera360.lib.camera.protocol import Metadata, Camera
 from camera360.lib.supervisor.protocol import FrameData
@@ -48,9 +49,10 @@ class CameraAPI(device.API):
         self._video_device.close()
         self._controls_device.close()
 
-    async def get_frame(self) -> FrameData:
+    async def get_frame(self) -> RawFrame:
+        # fixme: update with real implementation
         frame = self._video_device.get_image()
         logging.info("Got frame %s", frame.get_buffer().length)
 
         self.frame_id = self.frame_id + 1
-        return FrameData(index=self.frame_id, frame=b"")
+        return RawFrame(sequence=self.frame_id, buffer=frame.get_buffer())

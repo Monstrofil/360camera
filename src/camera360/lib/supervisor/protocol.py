@@ -1,5 +1,5 @@
 import enum
-from typing import List, Optional
+from typing import List, Optional, Any
 
 import pydantic
 from pydantic import BaseModel
@@ -43,6 +43,10 @@ class SupervisorProtocol(RPCProtocol):
 
     @method
     async def controls(self) -> List[AnyControl]: ...
+
+    @method
+    async def set_controls(self, *, values: dict[str, Any]) -> None:
+        ...
 
     @method
     async def status(self) -> Status: ...
