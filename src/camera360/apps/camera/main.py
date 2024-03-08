@@ -5,9 +5,10 @@ import logging
 import traceback
 from typing import Optional
 
-from camera360.apps.camera.api.fake.device import FakeDevice
-from camera360.apps.camera.api.fake.encoder import FakeEncoder
-from camera360.apps.camera.api.fake.preview import PreviewEncoder
+from camera360.apps.camera.api import load_api
+# from camera360.apps.camera.api.fake.device import FakeDevice
+# from camera360.apps.camera.api.fake.encoder import FakeEncoder
+# from camera360.apps.camera.api.fake.preview import PreviewEncoder
 from camera360.apps.camera.settings import settings
 from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData
 from camera360.lib.rpc.protocol import RPCHandler
@@ -19,10 +20,12 @@ class Handler(RPCHandler, CameraProtocol):
     def __init__(self):
         self.supervisors: list[SupervisorProtocol] = []
 
-        self._camera_api = FakeDevice()
-        self._preview_encoder = PreviewEncoder(
+        api = load_api(settings.device)
+
+        self._camera_api = api.Device()
+        self._preview_encoder = api.Preview(
             dirname=settings.get_preview_dir())
-        self._encoder = FakeEncoder(
+        self._encoder = api.Encoder(
             dirname=settings.get_video_dir())
 
         self._capture_task: Optional[asyncio.Task] = None

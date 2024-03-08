@@ -18,24 +18,24 @@ class Application(CameraProtocol):
             self.cli.command()(self._create_command_callback(name, getattr(self, name)))
 
     async def run_command(self, name, *args, **kwargs):
-        executor = await connect(host="127.0.0.1", port=8000, protocol=CameraProtocol)
+        async with connect(host="127.0.0.1", port=8000, protocol=CameraProtocol) as executor:
 
-        async_method = getattr(executor, name)(*args, **kwargs)
-        method_result = await async_method
+            async_method = getattr(executor, name)(*args, **kwargs)
+            method_result = await async_method
 
-        if isinstance(method_result, types.AsyncGeneratorType):
-            while True:
-                try:
-                    item = await method_result.__anext__()
-                except StopAsyncIteration:
-                    break
-                print(item)
-        elif method_result is None:
-            return
-        elif method_result is pydantic.BaseModel:
-            print("result", method_result.model_dump())
-        else:
-            print("result", method_result)
+            if isinstance(method_result, types.AsyncGeneratorType):
+                while True:
+                    try:
+                        item = await method_result.__anext__()
+                    except StopAsyncIteration:
+                        break
+                    print(item)
+            elif method_result is None:
+                return
+            elif method_result is pydantic.BaseModel:
+                print("result", method_result.model_dump())
+            else:
+                print("result", method_result)
 
     def _create_command_callback(self, name, future):
         @functools.wraps(future)

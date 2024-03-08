@@ -1,7 +1,8 @@
 import logging
 from typing import Optional
 
-from v4l2py import Device
+from v4l2py import Device, VideoCapture
+from v4l2py.device import BufferType, Frame
 
 from camera360.lib.camera.device import RawFrame
 from .rockchip import iter_media_devices, get_media_device
@@ -20,6 +21,7 @@ class CameraAPI(device.API):
         #     #     print(control)
         self._video_device: Optional[Device] = None
         self._controls_device: Optional[Device] = None
+        self._video_feed: Optional[VideoCapture] = None
         self.frame_id: int = 0
 
     async def metadata(self) -> Metadata:
@@ -31,6 +33,7 @@ class CameraAPI(device.API):
         )
 
     async def start(self, path: str, width: int, height: int):
+        path = '/dev/media1'
         rockchip_media = get_media_device(media_device_path=path)
 
         self._video_device = Device(rockchip_media.mainpath_device, read_write=True)
@@ -38,6 +41,12 @@ class CameraAPI(device.API):
 
         self._controls_device = Device(rockchip_media.sensor_device, read_write=True)
         self._controls_device.open()
+
+        self._video_feed = VideoCapture(
+            device=self._video_device,
+            buffer_type=BufferType.VIDEO_CAPTURE_MPLANE
+        )
+        self._video_feed.open()
 
     async def controls(self):
         if self._controls_device is None:
@@ -50,9 +59,16 @@ class CameraAPI(device.API):
         self._controls_device.close()
 
     async def get_frame(self) -> RawFrame:
-        # fixme: update with real implementation
-        frame = self._video_device.get_image()
-        logging.info("Got frame %s", frame.get_buffer().length)
+        frame: Frame = self._video_feed.buffer.read()
+        logging.info(f"Received frame "
+                     f"timestamp={frame.timestamp}, "
+                     f"frame_nb={frame.frame_nb}, "
+                     f"width={frame.width}, "
+                     f"height={frame.height}, "
+                     f"format={frame.pixel_format.name}")
 
-        self.frame_id = self.frame_id + 1
-        return RawFrame(sequence=self.frame_id, buffer=frame.get_buffer())
+        if frame.frame_nb != self.frame_id + 1:
+            logging.warning('Dropped frame number=%s', self.frame_id + 1)
+
+        self.frame_id = frame.frame_nb
+        return RawFrame(sequence=self.frame_id, buffer=frame.data)

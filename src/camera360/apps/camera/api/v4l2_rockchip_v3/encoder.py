@@ -20,12 +20,11 @@ class FakeEncoder(device.Encoder):
             "gst-launch-1.0",
             *shlex.split(
                 "fdsrc fd=0 "
-                "! image/jpeg, width=378, height=378 "
-                "! jpegdec "
-                "! video/x-raw, framerate=10/1 "
-                "! x264enc "
-                "! h264parse "
-                "! mp4mux "
+                '! queue '
+                '! rawvideoparse width=4048 height=3040 format=nv12 framerate=10/1 '
+                '! mpph264enc '
+                '! h264parse '
+                '! mp4mux '
                 f"! filesink location={self._dirname}/{datetime.datetime.now().isoformat()}.mp4"
             ),
             stdin=asyncio.subprocess.PIPE,
