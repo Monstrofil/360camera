@@ -6,9 +6,6 @@ import traceback
 from typing import Optional
 
 from camera360.apps.camera.api import load_api
-# from camera360.apps.camera.api.fake.device import FakeDevice
-# from camera360.apps.camera.api.fake.encoder import FakeEncoder
-# from camera360.apps.camera.api.fake.preview import PreviewEncoder
 from camera360.apps.camera.settings import settings
 from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData
 from camera360.lib.rpc.protocol import RPCHandler
@@ -49,7 +46,7 @@ class Handler(RPCHandler, CameraProtocol):
             capture_time=datetime.datetime.now(), index=1, meta=dict(test="test")
         )
 
-    def on_task_done(self, future: asyncio.Future):
+    def on_task_done(self, future: asyncio.Task):
         if e := future.exception():
             traceback.print_exception(e)
 

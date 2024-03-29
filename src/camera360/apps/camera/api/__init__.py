@@ -7,7 +7,7 @@ from camera360.lib.camera import device
 
 @dataclass
 class Api:
-    Device: type[device.API]
+    Device: type[device.VideoDevice]
     Encoder: type[device.Encoder]
     Preview: type[device.Encoder]
 

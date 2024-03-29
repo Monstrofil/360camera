@@ -11,14 +11,8 @@ from camera360.lib.camera.protocol import Metadata, Camera
 from camera360.lib.supervisor.protocol import FrameData
 
 
-class CameraAPI(device.API):
+class RockchipDevice(device.VideoDevice):
     def __init__(self):
-        # with Device.from_id(11, legacy_controls=True) as device:
-        #     info: Info = device.info
-        #     # print(device.get_format(BufferType.VIDEO_CAPTURE_MPLANE))
-        #     # print('controls', device.controls)
-        #     # for control in device.controls:
-        #     #     print(control)
         self._video_device: Optional[Device] = None
         self._controls_device: Optional[Device] = None
         self._video_feed: Optional[VideoCapture] = None
@@ -55,6 +49,8 @@ class CameraAPI(device.API):
         return ["MenuControl" for control in self._controls_device.controls.values()]
 
     async def stop(self):
+        self._video_feed.close()
+
         self._video_device.close()
         self._controls_device.close()
 

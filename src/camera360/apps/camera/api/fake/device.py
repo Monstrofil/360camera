@@ -7,8 +7,16 @@ from camera360.lib.camera.device import RawFrame
 from camera360.lib.camera.protocol import Metadata
 
 
-class FakeDevice(device.API):
+class FakeDevice(device.VideoDevice):
+    """
+    Demo device which returns demo stream and
+    intended to be used for development purposes
+    to run and debug system on regular linux machine
+    rather than sticking to RockChip devices.
+    """
     def __init__(self):
+        # usually vl4 devices count frames for you
+        # but we will do that manually
         self._frame_index = 0
 
     async def metadata(self) -> Metadata:
@@ -18,7 +26,7 @@ class FakeDevice(device.API):
         return [
             MenuItem(
                 name="Test patterns",
-                options=["Vertical Bars", "Horizontal", "c"],
+                options=["Vertical Bars", "Horizontal", "Solid Color"],
                 control_type="menu_item",
             ),
             Integer(name="Frequency", minimum=10, maximum=25, default=1),

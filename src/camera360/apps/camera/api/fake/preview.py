@@ -4,8 +4,10 @@ import os
 import shlex
 import typing
 
+from camera360.lib.camera import device
 
-class PreviewEncoder:
+
+class PreviewEncoder(device.Preview):
     def __init__(self, dirname: str):
         self._preview_pipeline = None
         self._dirname = dirname

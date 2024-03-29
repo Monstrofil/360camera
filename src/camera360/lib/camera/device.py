@@ -11,7 +11,7 @@ class RawFrame:
     buffer: bytes
 
 
-class API(typing.Protocol):
+class VideoDevice(typing.Protocol):
     async def metadata(self) -> Metadata: ...
 
     async def start(self, path: str, width: int, height: int): ...
@@ -31,4 +31,18 @@ class Encoder(typing.Protocol):
         ...
 
     async def encode(self, buffer: bytes):
+        ...
+
+
+class Preview(typing.Protocol):
+    async def init(self):
+        ...
+
+    async def fini(self):
+        ...
+
+    async def encode(self, buffer: bytes):
+        ...
+
+    async def get_file(self, filename: str):
         ...
