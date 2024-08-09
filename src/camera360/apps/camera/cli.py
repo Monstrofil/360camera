@@ -23,6 +23,8 @@ class Application(CameraProtocol):
             async_method = getattr(executor, name)(*args, **kwargs)
             method_result = await async_method
 
+            
+            from pprint import pprint
             if isinstance(method_result, types.AsyncGeneratorType):
                 while True:
                     try:
@@ -33,14 +35,14 @@ class Application(CameraProtocol):
             elif method_result is None:
                 return
             elif method_result is pydantic.BaseModel:
-                print("result", method_result.model_dump())
+                pprint(method_result.model_dump())
             else:
-                print("result", method_result)
+                pprint(method_result)
 
     def _create_command_callback(self, name, future):
         @functools.wraps(future)
         def call_command_wrapper(*args, **kwargs):
-            logging.info("Got a call with arguments %s %s %s", name, args, kwargs)
+            logging.debug("Got a call with arguments %s %s %s", name, args, kwargs)
 
             asyncio.run(self.run_command(name, *args, **kwargs))
 
@@ -51,7 +53,7 @@ class Application(CameraProtocol):
 
 
 def main():
-    logging.basicConfig(level=logging.DEBUG, force=True)
+    logging.basicConfig(level=logging.INFO, force=True)
 
     app = Application()
     app.run()

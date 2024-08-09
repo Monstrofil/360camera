@@ -2,7 +2,7 @@ import typing
 from pathlib import Path
 
 from camera360.lib.camera import device
-from camera360.lib.camera.controls import BaseControl, MenuItem, Integer
+from camera360.lib.camera.controls import AnyControl, MenuItem, NumericControl
 from camera360.lib.camera.device import RawFrame
 from camera360.lib.camera.protocol import Metadata
 
@@ -22,16 +22,16 @@ class FakeDevice(device.VideoDevice):
     async def metadata(self) -> Metadata:
         return Metadata(devices=[])
 
-    async def controls(self) -> typing.List[BaseControl]:
+    async def controls(self) -> typing.List[AnyControl]:
         return [
             MenuItem(
                 name="Test patterns",
                 options=["Vertical Bars", "Horizontal", "Solid Color"],
                 control_type="menu_item",
             ),
-            Integer(name="Frequency", minimum=10, maximum=25, default=1),
-            Integer(name="Exposure", minimum=10, maximum=25, default=1),
-            Integer(name="Vertical Bars", minimum=10, maximum=25, default=1),
+            NumericControl(name="Frequency", minimum=10, maximum=25, default=1),
+            NumericControl(name="Exposure", minimum=10, maximum=25, default=1),
+            NumericControl(name="Vertical Bars", minimum=10, maximum=25, default=1),
         ]
 
     async def get_frame(self) -> RawFrame:

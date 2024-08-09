@@ -59,7 +59,7 @@ class Connection:
             protocol: type[T],
             handler: typing.Optional[RPCHandler]) -> T:
         reader, writer = await asyncio.open_connection(
-            host=self.host, port=self.port, limit=10 * 1024 * 1024
+            host=self.host, port=self.port, limit=30 * 1024 * 1024
         )
         logging.info("Connection to the server established")
 

@@ -1,3 +1,4 @@
-from .device import RockchipDevice as Device
-from .encoder import MppEncoder as Encoder
+from .device import CameraAPI as Device
+from .encoder import FakeEncoder as Encoder
 from .preview import PreviewEncoder as Preview
+from .factory import Factory

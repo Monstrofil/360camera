@@ -95,5 +95,5 @@ def iter_media_devices():
     for media_device_path in media_devices:
         device = get_media_device(media_device_path)
 
-        if device is not None:
+        if device is not None and device.sensor_device:
             yield device

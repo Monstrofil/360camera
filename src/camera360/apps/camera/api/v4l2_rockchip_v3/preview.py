@@ -4,36 +4,23 @@ import os
 import shlex
 import typing
 
-from camera360.lib.camera import device
 
-
-class PreviewEncoder(device.Encoder):
-    def __init__(self, dirname: str):
-        self._preview_pipeline = None
-        self._dirname = dirname
-
+class PreviewEncoder:
+    def __init__(self):
         self._preview_pipeline: typing.Optional[asyncio.subprocess.Process] = None
 
     async def init(self):
-        os.makedirs(self._dirname, exist_ok=True)
-
         self._preview_pipeline = await asyncio.create_subprocess_exec(
             "gst-launch-1.0",
             *shlex.split(
                 "fdsrc fd=0 "
                 '! queue '
-                '! rawvideoparse width=4048 height=3040 format=nv12 '
-                '! videoscale '
-                '! video/x-raw,width=640,height=480 '
-                '! mpph264enc '
-                '! h264parse '
-                f"! hlssink2 "
-                f"max-files=5 "
-                f"target-duration=5 "
-                f"location={self._dirname}/segment%05d.ts "
-                f"playlist-location={self._dirname}/preview.m3u8"
+                '! rawvideoparse width=4048 height=3040 format=nv12 framerate=10/1 '
+                '! jpegenc '
+                "! filesink location=raw.jpeg"
             ),
-            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.PIPE
         )
 
     async def fini(self):
@@ -44,10 +31,15 @@ class PreviewEncoder(device.Encoder):
         await self._preview_pipeline.wait()
         self._preview_pipeline = None
 
-    async def encode(self, buffer: bytes):
-        logging.info("Encondign buffer len=%s", len(buffer))
+    async def encode(self, buffer: bytes) -> bytes:
+        logging.info("Enconding buffer len=%s", len(buffer))
         self._preview_pipeline.stdin.write(buffer)
+        await self._preview_pipeline.stdin.drain()
+        self._preview_pipeline.stdin.close()
 
-    async def get_file(self, filename: str):
-        with open(os.path.join(self._dirname, filename), "rb") as f:
-            return f.read()
+        # jpeg_data = await self._preview_pipeline.stdout.read()
+        await self._preview_pipeline.wait()
+        with open('raw.jpeg', 'rb') as f:
+            jpeg_data = f.read()
+
+        return jpeg_data

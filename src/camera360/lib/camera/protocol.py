@@ -1,8 +1,10 @@
 import datetime
+import typing
 
 from pydantic import BaseModel
 
 from camera360.lib.rpc.protocol import RPCProtocol, method
+from camera360.lib.camera.controls import NumericControl, AnyControl
 
 
 class CaptureStartData(BaseModel):
@@ -31,6 +33,9 @@ class Metadata(BaseModel):
 
 class CameraProtocol(RPCProtocol):
     @method
+    async def devices(self) -> list[str]: ...
+
+    @method
     async def metadata(self) -> Metadata: ...
 
     @method
@@ -39,13 +44,17 @@ class CameraProtocol(RPCProtocol):
     ) -> CaptureStartData: ...
 
     @method
-    async def controls(self): ...
+    async def controls(self, *, device_path: str) -> list[AnyControl]: ...
 
     @method
-    async def stop(self) -> None: ...
+    async def set_control(self, *, device_path: str, control_name: str, value: int):
+        ...
 
     @method
-    async def reset(self) -> None: ...
+    async def stop(self, *, device_path: str) -> None: ...
 
     @method
-    async def preview(self, *, filename: str) -> bytes: ...
+    async def reset(self, *, device_path: str) -> None: ...
+
+    @method
+    async def preview(self, *, device_path: str) -> bytes: ...

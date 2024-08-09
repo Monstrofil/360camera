@@ -3,8 +3,7 @@ import logging
 from contextlib import contextmanager
 from typing import List, Any
 
-from camera360.apps.supervisor.settings import settings
-from camera360.lib.camera.controls import Integer, AnyControl
+from camera360.lib.camera.controls import NumericControl, AnyControl
 from camera360.lib.camera.protocol import CameraProtocol
 from camera360.lib.rpc.protocol import RPCHandler
 from camera360.lib.rpc.server import connect, start_server, Connection
@@ -30,8 +29,8 @@ class Handler(RPCHandler, SupervisorProtocol):
         self._status = Status(status=SystemStatus.idle)
 
         self._controls = [
-            Integer(name="Exposure", value=11, minimum=10, maximum=25, default=11),
-            Integer(name="Framerate", value=2, minimum=1, maximum=10, default=1, step=1),
+            NumericControl(name="Exposure", value=11, minimum=10, maximum=25, default=11),
+            NumericControl(name="Framerate", value=2, minimum=1, maximum=10, default=1, step=1),
         ]
         super().__init__()
 
@@ -72,8 +71,17 @@ class Handler(RPCHandler, SupervisorProtocol):
         with self._status_transition(SystemStatus.idle):
             await asyncio.gather(*[client.stop() for client in self.cameras])
 
-    async def controls(self) -> List[AnyControl]:
+    async def controls(self) -> list[AnyControl]:
         return self._controls[:]
+
+    async def camera_controls(self) -> dict[str, list[AnyControl]]:
+        camera_controls = {}
+        for camera in self.cameras:
+            for device in await camera.devices():
+                camera_controls[f'192.168.0.109_{device}'] = \
+                    await camera.controls(device_path=device)
+        print(camera_controls)
+        return camera_controls
 
     async def set_controls(self, values: dict[str, Any]) -> None:
         for control in self._controls:
@@ -82,6 +90,18 @@ class Handler(RPCHandler, SupervisorProtocol):
 
             control.value = values[control.name]
 
+    async def set_camera_control(self, camera_id: str, values: dict[str, Any]) -> None:
+        async def get_camera(camera_id):
+            for camera in self.cameras:
+                for device in await camera.devices():
+                    if camera_id != f'192.168.0.109_{device}':
+                        continue
+                    return device, camera
+
+        device, camera = await get_camera(camera_id)
+        for name, value in values.items():
+            await camera.set_control(device_path=device, control_name=name, value=value)
+
     async def status(self) -> Status:
         self._status.clients = [
             Client(name="Camera %s" % index)
@@ -89,8 +109,9 @@ class Handler(RPCHandler, SupervisorProtocol):
         ]
         return self._status
 
-    async def preview(self, *, filename: str) -> bytes:
-        return await self.cameras[0].preview(filename=filename)
+    async def preview(self, *, device_path: str) -> bytes:
+        return await self.cameras[0].preview(
+            device_path=device_path)
 
 
 async def connect_hosts(connections, handler):
@@ -105,7 +126,8 @@ async def connect_hosts(connections, handler):
                 remote = await connection.connect(
                     protocol=CameraProtocol, handler=handler)
 
-                await remote.reset()
+                # todo: remove this
+                # await remote.reset()
                 executors.append(remote)
             except ConnectionRefusedError:
                 logging.info("%s:%d is still unreachable", host, port)
@@ -123,9 +145,12 @@ async def run(connections):
     handler = Handler()
 
     executors = await connect_hosts(connections, handler=handler)
+
+    results = await asyncio.gather(*[api.metadata() for api in executors])
+
     handler.cameras = executors
 
-    server = await start_server(handler, host=settings.host, port=settings.port)
+    server = await start_server(handler, host="127.0.0.1", port=8181)
 
     async with server:
         await server.serve_forever()

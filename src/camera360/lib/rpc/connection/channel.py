@@ -50,7 +50,7 @@ class Channel:
         return self
 
     async def close(self):
-        logging.info("Shutting down channel")
+        logging.debug("Shutting down channel")
         self._loop.cancel()
 
         self.writer.close()
@@ -85,11 +85,11 @@ class Channel:
                 traceback.print_exception(e)
 
         while True:
-            logging.info("Starting loop for channel %s", self)
+            logging.debug("Starting loop for channel %s", self)
             try:
                 logging.debug("Waiting for new incoming messages")
                 raw_message = await self.reader.readline()
-                logging.info("Incoming message received")
+                logging.debug("Incoming message received")
             except ConnectionResetError:
                 logging.warning("Client disconnected")
                 break
@@ -100,7 +100,7 @@ class Channel:
             if raw_message == b"":
                 break
 
-            logging.info("Message received in channel %s", self)
+            logging.debug("Message received in channel %s", self)
             logging.debug("Adding pending task")
             task = asyncio.create_task(self.data_received(raw_message))
             task.add_done_callback(on_task_done)

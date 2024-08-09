@@ -13,12 +13,12 @@ class BaseControl(pydantic.BaseModel):
 
 
 class MenuItem(BaseControl):
-    options: list[str]
+    options: dict[int, str | int]
 
     control_type: typing.Literal["menu_item"] = "menu_item"
 
 
-class Integer(BaseControl):
+class NumericControl(BaseControl):
     value: int
 
     minimum: int = 10
@@ -30,10 +30,19 @@ class Integer(BaseControl):
     control_type: typing.Literal["integer"] = "integer"
 
 
-AnyControl = typing.Union[MenuItem, Integer]
+class BooleanControl(NumericControl):
+    minimum: int = 0
+    maximum: int = 1
+
+    default: int = 0
+
+    control_type: typing.Literal["boolean"] = "boolean"
+
+
+AnyControl = typing.Union[MenuItem, NumericControl, BooleanControl]
 
 
 class ControlsModel(pydantic.BaseModel):
-    controls: typing.List[typing.Union[MenuItem, Integer]] = pydantic.Field(
+    controls: typing.List[typing.Union[MenuItem, NumericControl]] = pydantic.Field(
         ..., discriminator="control_type"
     )

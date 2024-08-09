@@ -8,16 +8,7 @@ import typing
 from camera360.lib.camera import device
 
 
-class MppEncoder(device.Encoder):
-    """
-    This encoder is specific for RockChip systems
-    because it uses hardware accelerated mpph264enc
-    which is not available on other systems.
-
-    And wise-versa, generic encoders are not
-    available (or at least not hardware-accelerated)
-    on rockchip systems.
-    """
+class FakeEncoder(device.Encoder):
     def __init__(self, dirname="video"):
         self._dirname = dirname
         self._capture_pipeline: typing.Optional[asyncio.subprocess.Process] = None
@@ -36,17 +27,22 @@ class MppEncoder(device.Encoder):
                 '! mp4mux '
                 f"! filesink location={self._dirname}/{datetime.datetime.now().isoformat()}.mp4"
             ),
-            stdin=asyncio.subprocess.PIPE,
+            stdin=asyncio.subprocess.PIPE
         )
+
+    # async def inpipe(self):
+    #     return self._capture_pipeline.stdin
 
     async def fini(self):
         if self._capture_pipeline:
             self._capture_pipeline.stdin.close()
 
         logging.info('Waiting for the capture process to finish')
+        
         await self._capture_pipeline.wait()
         self._capture_pipeline = None
 
     async def encode(self, buffer: bytes):
-        logging.info("Encondign buffer len=%s", len(buffer))
+        logging.info("Encondign buffer")
         self._capture_pipeline.stdin.write(buffer)
+        await self._capture_pipeline.stdin.drain()

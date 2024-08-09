@@ -89,25 +89,53 @@ async def main():
             toggle_value = "on" if status.status == SystemStatus.capture else "off"
             ui.toggle(["on", "off"], value=toggle_value, on_change=on_toggle_change)
 
-            with ui.card().classes("w-3/12") as card:
-                video = ui.video(
-                    src="#",
-                    autoplay=True,
-                    muted=True
-                ).classes("w-full")
-                ui.run_javascript(
-                    f'attachHls({video.id}, "/video/stream/playlist.m3u8");'
-                )
+            # with ui.card().classes("w-3/12") as card:
+            #     video = ui.video(
+            #         src="#",
+            #         autoplay=True,
+            #         muted=True
+            #     ).classes("w-full")
+            #     ui.run_javascript(
+            #         f'attachHls({video.id}, "/video/stream/playlist.m3u8");'
+            #     )
 
             async def on_control_change(control: AnyControl, value: Any):
                 ui.notify(value)
 
                 await application.set_control(control.name, value)
 
+            async def on_camera_control_change(camera_id: str, control: AnyControl, value: Any):
+                ui.notify("Camera control changed: %s" % value)
+                await application.set_camera_control(camera_id, control.name, value)
+
             ui.label("Controls")
             with ui.row().classes('w-full'):
                 for item in await application.controls():
                     create_control(control=item, on_change=partial(on_control_change, item))
+
+            ui.label("Cameras controls")
+            controls_per_camera = await application.camera_controls()
+            tabs_per_camera = []
+            with ui.tabs().classes('w-full') as tabs:
+                ui.tab("Camera controls")
+                for camera_id, camera_ctrls in controls_per_camera.items():
+                    tabs_per_camera.append(ui.tab(camera_id))
+
+            with ui.tab_panels(tabs, value="Camera controls").classes('w-full'):
+                with ui.tab_panel("Camera controls"):
+                    ui.markdown("### Controls for cameras")
+
+                for tab, (camera_id, camera_ctrls) in zip(tabs_per_camera, controls_per_camera.items()):
+                    with ui.tab_panel(tab):
+                        with ui.row().classes('w-full'):
+                            for item in camera_ctrls:
+                                create_control(control=item, on_change=partial(on_camera_control_change, camera_id, item))
+
+
+            img = ui.image('/preview.jpeg').classes('w-64')
+            ui.button('Force reload', on_click=img.force_reload)
+            ui.label('Camera preview')
+
 
         # for client in status.clients:
         #     with ui.tab_panel(client.name):
@@ -119,6 +147,15 @@ async def grab_video_frame(rest_of_path) -> Response:
     return Response(
         content=base64.decodebytes(await application.preview(filename=rest_of_path)),
         media_type="text/plain",
+    )
+
+
+@app.get("/preview.jpeg")
+async def preview_image() -> Response:
+    base64_image = await application.get_camera_preview(camera_id='/dev/media1')
+    return Response(
+        content=base64.decodebytes(base64_image),
+        media_type="media/jpeg",
     )
 
 

@@ -42,15 +42,32 @@ class Application:
         await self.status(refresh=True)
 
     async def preview(self, filename):
-        return await self._supervisor.preview(filename=filename)
+        return await self._supervisor.preview(device_path=filename)
 
     async def controls(self):
         return await self._supervisor.controls()
 
+    async def camera_controls(self):
+        return await self._supervisor.camera_controls()
+
     async def set_control(self, name, value):
+        if hasattr(value, 'value'):
+            value = value.value
         return await self._supervisor.set_controls(values={
             name: value
         })
+
+    async def set_camera_control(self, camera_id, name, value):
+        if hasattr(value, 'value'):
+            value = value.value
+        return await self._supervisor.set_camera_control(
+            camera_id=camera_id,
+            values={
+                name: value
+            })
+
+    async def get_camera_preview(self, camera_id: str):
+        return await self._supervisor.preview(device_path=camera_id)
 
     async def connect(self, reconnect: bool = False):
         connection = Connection(host="127.0.0.1", port=8181)
