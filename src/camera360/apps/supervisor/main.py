@@ -110,7 +110,7 @@ class Handler(RPCHandler, SupervisorProtocol):
         ]
         return self._status
 
-    async def preview(self, *, camera_id: str, device_path: str) -> bytes:
+    async def preview(self, *, camera_id: str) -> bytes:
         async def get_camera(camera_id):
             for camera in self.cameras:
                 for device in await camera.devices():

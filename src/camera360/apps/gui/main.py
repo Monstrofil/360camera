@@ -115,18 +115,6 @@ async def main():
                                 on_change=partial(on_camera_control_change, camera_id, item))
 
 
-        # for client in status.clients:
-        #     with ui.tab_panel(client.name):
-        #         camera_tab_content()
-
-
-@app.get("/video/stream/{rest_of_path:path}")
-async def grab_video_frame(rest_of_path) -> Response:
-    return Response(
-        content=base64.decodebytes(await application.preview(filename=rest_of_path)),
-        media_type="text/plain",
-    )
-
 
 @app.get("/preview.jpeg")
 async def preview_image(camera_id: str) -> Response:
