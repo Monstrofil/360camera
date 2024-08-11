@@ -152,7 +152,7 @@ async def grab_video_frame(rest_of_path) -> Response:
 
 @app.get("/preview.jpeg")
 async def preview_image() -> Response:
-    base64_image = await application.get_camera_preview(camera_id='/dev/media1')
+    base64_image = await application.get_camera_preview(camera_id='/dev/media3')
     return Response(
         content=base64.decodebytes(base64_image),
         media_type="media/jpeg",

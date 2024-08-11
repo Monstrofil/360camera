@@ -7,9 +7,14 @@ from .protocol import Metadata
 
 @dataclass
 class RawFrame:
+    width: int
+    height: int
     sequence: int
     buffer: bytes
 
+
+class TimeoutError(OSError):
+    ...
 
 class VideoDevice(typing.Protocol):
     def __init__(self, media_path: str) -> None:
@@ -29,13 +34,13 @@ class VideoDevice(typing.Protocol):
 
 
 class Encoder(typing.Protocol):
-    async def init(self):
+    async def init(self, width: int, height: int) -> None:
         ...
 
     async def fini(self):
         ...
 
-    async def encode(self, buffer: bytes):
+    async def encode(self, frame: RawFrame):
         ...
 
 

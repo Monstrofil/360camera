@@ -53,7 +53,7 @@ class SupervisorProtocol(RPCProtocol):
         ...
 
     @method
-    async def set_camera_control(self, *, camera_id: str, values: dict[str, Any]) -> None:
+    async def set_camera_control(self, *, camera_id: str, name: str, value: Any) -> None:
         ...
 
     @method

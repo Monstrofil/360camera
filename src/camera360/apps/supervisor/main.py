@@ -1,12 +1,12 @@
 import asyncio
 import logging
-from contextlib import contextmanager
+from contextlib import contextmanager, asynccontextmanager
 from typing import List, Any
 
 from camera360.lib.camera.controls import NumericControl, AnyControl
 from camera360.lib.camera.protocol import CameraProtocol
 from camera360.lib.rpc.protocol import RPCHandler
-from camera360.lib.rpc.server import connect, start_server, Connection
+from camera360.lib.transport.http import connect, start_server, Connection
 from camera360.lib.supervisor.protocol import (
     SupervisorProtocol,
     FrameData,
@@ -90,7 +90,7 @@ class Handler(RPCHandler, SupervisorProtocol):
 
             control.value = values[control.name]
 
-    async def set_camera_control(self, camera_id: str, values: dict[str, Any]) -> None:
+    async def set_camera_control(self, camera_id: str, name: str, value: Any) -> None:
         async def get_camera(camera_id):
             for camera in self.cameras:
                 for device in await camera.devices():
@@ -99,8 +99,7 @@ class Handler(RPCHandler, SupervisorProtocol):
                     return device, camera
 
         device, camera = await get_camera(camera_id)
-        for name, value in values.items():
-            await camera.set_control(device_path=device, control_name=name, value=value)
+        await camera.set_control(device_path=device, control_name=name, value=value)
 
     async def status(self) -> Status:
         self._status.clients = [
@@ -141,25 +140,28 @@ async def connect_hosts(connections, handler):
     return executors
 
 
-async def run(connections):
+def run(connections):
     handler = Handler()
 
-    executors = await connect_hosts(connections, handler=handler)
+    @asynccontextmanager
+    async def lifespan(app):
 
-    results = await asyncio.gather(*[api.metadata() for api in executors])
+        executors = await connect_hosts(connections, handler=handler)
 
-    handler.cameras = executors
+        results = await asyncio.gather(*[api.metadata() for api in executors])
 
-    server = await start_server(handler, host="127.0.0.1", port=8181)
+        handler.cameras = executors
 
-    async with server:
-        await server.serve_forever()
+        yield
+
+    start_server(handler, host="127.0.0.1", port=8181, lifespan=lifespan)
+
 
 
 def main():
     logging.basicConfig(level=logging.DEBUG, force=True)
 
-    asyncio.run(run(connections=CONNECTIONS))
+    run(connections=CONNECTIONS)
 
 
 if __name__ == "__main__":

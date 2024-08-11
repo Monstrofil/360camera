@@ -3,14 +3,13 @@ import contextlib
 import logging
 import typing
 
-from .connection.channel import Channel
-from .executor import RemotePython
-from .protocol import RPCHandler
-from ..camera.protocol import CameraProtocol
+from ..rpc.connection.channel import Channel
+from ..rpc.executor import RemotePython
+from ..rpc.protocol import RPCHandler
 from ..supervisor.protocol import SupervisorProtocol
 
 
-async def start_server(handler: RPCHandler, host: str = "127.0.0.1", port: int = 8000):
+async def start_server(handler: RPCHandler, host: str = "127.0.0.1", port: int = 8000) -> typing.NoReturn:
     async def create_channel(
         reader: asyncio.StreamReader, writer: asyncio.StreamWriter
     ):
@@ -30,7 +29,8 @@ async def start_server(handler: RPCHandler, host: str = "127.0.0.1", port: int =
         host=host, port=port, client_connected_cb=create_channel
     )
 
-    return server
+    async with server:
+        await server.serve_forever()
 
 
 T = typing.TypeVar("T")

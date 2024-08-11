@@ -3,7 +3,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from camera360.lib.rpc.server import Connection
+from camera360.lib.transport.http import Connection
 from camera360.lib.supervisor.protocol import SystemStatus, SupervisorProtocol
 
 
@@ -62,9 +62,9 @@ class Application:
             value = value.value
         return await self._supervisor.set_camera_control(
             camera_id=camera_id,
-            values={
-                name: value
-            })
+            name=name,
+            value=value
+        )
 
     async def get_camera_preview(self, camera_id: str):
         return await self._supervisor.preview(device_path=camera_id)
@@ -75,7 +75,7 @@ class Application:
         self._supervisor = await connection.connect(
             protocol=SupervisorProtocol, handler=None)
 
-        asyncio.ensure_future(self._wait_for_disconnect(connection))
+        # asyncio.ensure_future(self._wait_for_disconnect(connection))
 
     async def disconnect(self):
         if self._supervisor:

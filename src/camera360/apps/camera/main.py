@@ -10,7 +10,7 @@ from camera360.apps.camera.settings import settings
 from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData
 from camera360.lib.rpc.protocol import RPCHandler
 from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData
-from camera360.lib.rpc.server import start_server
+from camera360.lib.transport.http import start_server
 from functools import partial
 from camera360.lib.camera.controls import AnyControl
 
@@ -78,7 +78,7 @@ class Handler(RPCHandler, CameraProtocol):
     async def _capture_loop(self, camera_api, encoder) -> None:
         try:
             async for frame in camera_api.get_frame():
-                await encoder.encode(frame.buffer)
+                await encoder.encode(frame)
                 await self._send_frame_callback(FrameData(index=frame.sequence))
         except asyncio.CancelledError:
             logging.info('Capture loop is being cancelled')
@@ -100,12 +100,12 @@ class Handler(RPCHandler, CameraProtocol):
         camera_api = self._api.Device(device_path)
         preview_encoder = self._api.Preview()
 
-        await preview_encoder.init()
-        await camera_api.start(4040, 3040)
+        await preview_encoder.init(1920, 1080)
+        await camera_api.start(1920, 1080)
         try:
             async for frame in camera_api.get_frame(frames=1):
                 try:
-                    jpeg_bytes = await preview_encoder.encode(frame.buffer)
+                    jpeg_bytes = await preview_encoder.encode(frame)
                     return base64.encodebytes(jpeg_bytes)
                 except FileNotFoundError:
                     await asyncio.sleep(0.2)
@@ -122,18 +122,12 @@ class Handler(RPCHandler, CameraProtocol):
         await camera_api.set_control(control_name=control_name, value=value)
 
 
-async def run():
-    handler = Handler()
-    server = await start_server(handler, host=settings.host, port=settings.port)
-
-    async with server:
-        await server.serve_forever()
-
 
 def main():
     logging.basicConfig(level=logging.DEBUG, force=True)
 
-    asyncio.run(run())
+    handler = Handler()
+    start_server(handler, host=settings.host, port=settings.port)
 
 
 if __name__ == "__main__":

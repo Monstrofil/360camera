@@ -7,7 +7,7 @@ import pydantic
 import typer
 
 from camera360.lib.camera.protocol import CameraProtocol
-from camera360.lib.rpc.server import connect
+from camera360.lib.transport.http import connect
 
 
 class Application(CameraProtocol):

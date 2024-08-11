@@ -6,7 +6,7 @@ import typing
 from functools import partial
 
 
-from camera360.lib.rpc.connection.channel import Channel
+from camera360.lib.rpc.connection.channel import IChannel
 from camera360.lib.rpc.connection import MethodCall
 from camera360.lib.rpc.decorators import MethodType
 from camera360.lib.rpc.protocol import RPCProtocol
@@ -15,9 +15,9 @@ T = typing.TypeVar("T")
 
 
 class RemotePython(typing.Generic[T]):
-    def __init__(self, protocol: T, channel: Channel):
+    def __init__(self, protocol: T, channel: IChannel):
         self._protocol: RPCProtocol = protocol
-        self._channel: Channel = channel
+        self._channel: IChannel = channel
 
         for name, member in self._protocol.methods.items():
             logging.debug("Processing method %s", member)

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import traceback
+import typing
 from typing import Optional
 
 import pydantic
@@ -15,6 +16,31 @@ class Message(BaseModel):
 
     request_id: Optional[int] = None
     response_id: Optional[int] = None
+
+
+class IChannel(typing.Protocol):
+
+    def __init__(
+        self,
+        reader: asyncio.StreamReader,
+        writer: asyncio.StreamWriter,
+        handler: Optional[RPCHandler],
+    ):
+        self.reader = reader
+        self.writer = writer
+        self.handler = handler
+
+    async def __aenter__(self):
+        return await self.start()
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return await self.close()
+
+    async def start(self, on_lost_connection_cb=None): ...
+
+    async def close(self): ...
+
+    async def send_request(self, payload: bytes) -> bytes: ...
 
 
 class Channel:
