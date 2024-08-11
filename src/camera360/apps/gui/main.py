@@ -44,76 +44,99 @@ def camera_tab_content():
     #         )
 
 
+async def generic_page_header():
+    with ui.header().classes(replace="row items-center") \
+            .classes('items-center duration-200 p-0 px-4 no-wrap') \
+            .style('box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1)'):
+        with ui.row():
+            ui.link('Main', main_page).classes(replace='text-md text-white')
+            ui.link('Preview', preview_page).classes(replace='text-md text-white')
+            ui.link('Advanced', advanced_page).classes(replace='text-md text-white')
+
+
+@ui.page("/preview")
+async def preview_page():
+    await generic_page_header()
+    ui.markdown("""
+    **Preview**
+    
+    This section allows you to preview a video stream from your camera. 
+    Aging your cameras and make sure that they are giving a proper video stream.
+     
+    During capture, this functionality is not available.
+    """)
+
+    controls_per_camera = await application.camera_controls()
+    with ui.row():
+        for camera_id in controls_per_camera.keys():
+            with ui.card():
+                img = ui.image('/preview.jpeg?camera_id=%s' % camera_id).classes('w-64')
+                ui.button('Force reload', on_click=img.force_reload)
+                ui.label('Camera preview %s' % camera_id)
+
+
+@ui.page("/advanced")
+async def advanced_page():
+    await generic_page_header()
+    ui.markdown("""
+        **Advanced settings**
+
+        This section allows you to fine-tune your camera settings using advanced settings.
+        You must have a deep knowledge in camera settings before you can use advanced settings.
+        """)
+
+    async def on_camera_control_change(camera_id: str, control: AnyControl, value: Any):
+        ui.notify("Camera control changed: %s" % value)
+        await application.set_camera_control(camera_id, control.name, value)
+
+    controls_per_camera = await application.camera_controls()
+    tabs_per_camera = []
+    with ui.splitter(value=30).classes('w-full') as splitter, splitter.before:
+        with ui.tabs().props('vertical').classes('w-full') as tabs:
+            for camera_id, camera_ctrls in controls_per_camera.items():
+                tabs_per_camera.append(ui.tab(camera_id))
+
+    with splitter.after, ui.tab_panels(tabs, value="Camera controls").classes('w-full'):
+        for tab, (camera_id, camera_ctrls) in zip(tabs_per_camera, controls_per_camera.items()):
+            with ui.tab_panel(tab), ui.row().classes('w-full'):
+                for item in camera_ctrls:
+                    create_control(
+                        control=item,
+                        on_change=partial(on_camera_control_change, camera_id, item))
+
+
 @ui.page("/")
-async def main():
+async def main_page():
     status = await application.status()
 
-    with ui.header().classes(replace="row items-center") as header, ui.tabs() as tabs:
-        ui.tab("Main")
+    await generic_page_header()
 
-        # for client in status.clients:
-        #     ui.tab(client.name)
+    with ui.row():
+        ui.label("Status:")
+        ui.label().bind_text_from(status, "status")
 
-    with ui.tab_panels(tabs, value="Main").classes("w-full"):
-        with ui.tab_panel("Main"):
-            with ui.row():
-                ui.label("Status:")
-                ui.label().bind_text_from(status, "status")
+        ui.spinner().bind_visibility_from(status, "pending_status")
 
-                ui.spinner().bind_visibility_from(status, "pending_status")
+    async def on_toggle_change(event):
+        if event.value == "on":
+            await application.start_capture()
+        elif event.value == "off":
+            await application.stop_capture()
+        else:
+            raise NotImplementedError
 
-            async def on_toggle_change(event):
-                if event.value == "on":
-                    await application.start_capture()
-                elif event.value == "off":
-                    await application.stop_capture()
-                else:
-                    raise NotImplementedError
+    toggle_value = "on" if status.status == SystemStatus.capture else "off"
+    ui.toggle(["on", "off"], value=toggle_value, on_change=on_toggle_change)
 
-            toggle_value = "on" if status.status == SystemStatus.capture else "off"
-            ui.toggle(["on", "off"], value=toggle_value, on_change=on_toggle_change)
+    async def on_control_change(control: AnyControl, value: Any):
+        ui.notify(value)
 
-            async def on_control_change(control: AnyControl, value: Any):
-                ui.notify(value)
+        await application.set_control(control.name, value)
 
-                await application.set_control(control.name, value)
-
-            async def on_camera_control_change(camera_id: str, control: AnyControl, value: Any):
-                ui.notify("Camera control changed: %s" % value)
-                await application.set_camera_control(camera_id, control.name, value)
-
-            ui.label("Controls")
-            with ui.row().classes('w-full'):
-                for item in await application.controls():
-                    create_control(control=item, on_change=partial(on_control_change, item))
-
-            controls_per_camera = await application.camera_controls()
-            ui.label("Preview")
-            with ui.row():
-                for camera_id in controls_per_camera.keys():
-                    with ui.card():
-                        img = ui.image('/preview.jpeg?camera_id=%s' % camera_id).classes('w-64')
-                        ui.button('Force reload', on_click=img.force_reload)
-                        ui.label('Camera preview %s' % camera_id)
-
-            ui.label("Cameras controls")
-            tabs_per_camera = []
-            with ui.tabs().classes('w-full') as tabs:
-                ui.tab("Camera controls")
-                for camera_id, camera_ctrls in controls_per_camera.items():
-                    tabs_per_camera.append(ui.tab(camera_id))
-
-            with ui.tab_panels(tabs, value="Camera controls").classes('w-full'):
-                with ui.tab_panel("Camera controls"):
-                    ui.markdown("### Controls for cameras")
-
-                for tab, (camera_id, camera_ctrls) in zip(tabs_per_camera, controls_per_camera.items()):
-                    with ui.tab_panel(tab), ui.row().classes('w-full'):
-                        for item in camera_ctrls:
-                            create_control(
-                                control=item,
-                                on_change=partial(on_camera_control_change, camera_id, item))
-
+    ui.label("Controls")
+    with ui.row().classes('w-full'):
+        for item in await application.controls():
+            create_control(control=item, on_change=partial(on_control_change, item))
 
 
 @app.get("/preview.jpeg")
@@ -125,4 +148,9 @@ async def preview_image(camera_id: str) -> Response:
     )
 
 
-ui.run()
+def main():
+    ui.run()
+
+
+if __name__ in {"__main__", "__mp_main__"}:
+    main()

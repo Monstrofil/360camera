@@ -61,17 +61,22 @@ class Handler(RPCHandler, SupervisorProtocol):
         ]
 
     async def start(self) -> None:
+        tasks = []
+        for camera in self.cameras:
+            for device in await camera.devices():
+                tasks.append(camera.start(device_path=device, width=1920, height=1080))
+
         with self._status_transition(SystemStatus.capture):
-            await asyncio.gather(
-                *[
-                    client.start(device_path="/dev/video0", width=1920, height=1080)
-                    for client in self.cameras
-                ]
-            )
+            await asyncio.gather(*tasks)
 
     async def stop(self) -> None:
+        tasks = []
+        for camera in self.cameras:
+            for device in await camera.devices():
+                tasks.append(camera.stop(device_path=device))
+
         with self._status_transition(SystemStatus.idle):
-            await asyncio.gather(*[client.stop() for client in self.cameras])
+            await asyncio.gather(*tasks)
 
     async def controls(self) -> list[AnyControl]:
         return self._controls[:]
@@ -82,7 +87,6 @@ class Handler(RPCHandler, SupervisorProtocol):
             for device in await camera.devices():
                 camera_controls[f'192.168.0.109_{device}'] = \
                     await camera.controls(device_path=device)
-        print(camera_controls)
         return camera_controls
 
     async def set_controls(self, values: dict[str, Any]) -> None:

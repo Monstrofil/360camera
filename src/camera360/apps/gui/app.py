@@ -35,7 +35,7 @@ class Application:
 
     async def stop_capture(self):
         assert self._status.status == SystemStatus.capture, \
-            "Unable to start already started capture"
+            "Unable to stop not running capture"
 
         self._status.pending_status = SystemStatus.idle
         await self._supervisor.stop()

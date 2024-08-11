@@ -57,6 +57,7 @@ class CameraAPI(device.VideoDevice):
             height=height,
             pixel_format='NV12'
         )
+        logging.info('Set format for %s', self._rockchip_media.mainpath_device)
 
         self._video_feed = VideoCapture(
             device=self._video_device,
@@ -154,4 +155,5 @@ class CameraAPI(device.VideoDevice):
                 height=frame.height,
                 buffer=frame.data)
 
-            frames -= 1
+            if frames is not None:
+                frames -= 1

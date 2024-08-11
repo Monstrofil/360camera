@@ -22,12 +22,6 @@ class Handler(RPCHandler, CameraProtocol):
         self._api = load_api(settings.device)
         self._factory = self._api.Factory()
 
-        # self._camera_api = api.Device()
-        # self._preview_encoder = api.Preview(
-        #     dirname=settings.get_preview_dir())
-        # self._encoder = api.Encoder(
-        #     dirname=settings.get_video_dir())
-
         self._capture_tasks: dict[str, asyncio.Task] = {}
         super().__init__()
 
@@ -46,7 +40,7 @@ class Handler(RPCHandler, CameraProtocol):
         camera_api = self._api.Device(device_path)
         encoder = self._api.Encoder()
 
-        await encoder.init()
+        await encoder.init(width=width, height=height)
         await camera_api.start(width=width, height=height)
 
         task = asyncio.create_task(self._capture_loop(camera_api, encoder))
