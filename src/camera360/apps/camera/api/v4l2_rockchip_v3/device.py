@@ -1,4 +1,6 @@
+import asyncio
 import logging
+import typing
 from typing import Optional
 
 from v4l2py import Device, VideoCapture
@@ -6,6 +8,7 @@ from v4l2py.device import BufferType, MenuControl, BaseNumericControl, BooleanCo
 
 from camera360.lib.camera import controls
 from camera360.lib.camera.device import RawFrame
+from .mediactl import set_v4l2_media_ctl
 from .rockchip import get_media_device, iter_media_devices
 from camera360.lib.camera import device
 from camera360.lib.camera.protocol import Metadata, Camera
@@ -19,12 +22,12 @@ class CameraAPI(device.VideoDevice):
         self._video_device: Optional[Device] = None
         self._controls_device: Optional[Device] = None
 
-        rockchip_media = get_media_device(media_device_path=media_path)
+        self._rockchip_media = get_media_device(media_device_path=media_path)
 
-        self._video_device = Device(rockchip_media.mainpath_device, read_write=True)
+        self._video_device = Device(self._rockchip_media.mainpath_device, read_write=True)
         self._video_device.open()
 
-        self._controls_device = Device(rockchip_media.sensor_device, read_write=True)
+        self._controls_device = Device(self._rockchip_media.sensor_device, read_write=True)
         self._controls_device.open()
 
         self._video_feed: Optional[VideoCapture] = None
@@ -41,6 +44,22 @@ class CameraAPI(device.VideoDevice):
         )
 
     async def start(self, width: int, height: int):
+        set_v4l2_media_ctl(
+            self._rockchip_media.cif_device,
+            self._rockchip_media.sensor_name,
+            width,
+            height
+        )
+
+        print(self._rockchip_media.mainpath_device)
+        print('self._video_device.get_format(BufferType.VIDEO_CAPTURE_MPLANE)', self._video_device.get_format(BufferType.VIDEO_CAPTURE_MPLANE))
+        self._video_device.set_format(
+            BufferType.VIDEO_CAPTURE_MPLANE,
+            width=width,
+            height=height,
+            pixel_format='NV12'
+        )
+
         self._video_feed = VideoCapture(
             device=self._video_device,
             buffer_type=BufferType.VIDEO_CAPTURE_MPLANE,
@@ -98,12 +117,28 @@ class CameraAPI(device.VideoDevice):
         
         logging.info('Camera device stopped')
 
-    async def get_frame(self, frames: int | None = None) -> list[RawFrame]:
-        # todo: async cycle?
-        # async for frame in self._video_feed:
+    async def get_frame(self, frames: int | None = None) -> typing.AsyncIterable[RawFrame]:
+
+        async def async_read(buffer):
+            loop = asyncio.get_event_loop()
+            future = asyncio.Future()
+
+            device = buffer.device
+            loop.add_reader(device, future.set_result, None)
+            future.add_done_callback(lambda f: loop.remove_reader(device))
+
+            await future
+            return buffer.raw_read()
 
         while frames is None or frames:
-            frame: Frame = self._video_feed.buffer.read()
+            try:
+                frame: Frame = await asyncio.wait_for(
+                    async_read(self._video_feed.buffer),
+                    timeout=5
+                )
+            except asyncio.TimeoutError:
+                raise device.TimeoutError("Unable to read frame, timeout reached")
+
             logging.info(f"Received frame "
                          f"timestamp={frame.timestamp}, "
                          f"frame_nb={frame.frame_nb}, "
@@ -115,6 +150,10 @@ class CameraAPI(device.VideoDevice):
                 logging.warning('Dropped frame number=%s', self.frame_id + 1)
 
             self.frame_id = frame.frame_nb
-            yield RawFrame(sequence=self.frame_id, buffer=frame.data)
+            yield RawFrame(
+                sequence=self.frame_id,
+                width=frame.width,
+                height=frame.height,
+                buffer=frame.data)
 
             frames -= 1
