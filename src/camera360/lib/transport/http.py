@@ -1,4 +1,5 @@
 import contextlib
+import functools
 import logging
 import typing
 from functools import partial
@@ -14,8 +15,26 @@ from ..rpc.protocol import RPCHandler, RPCProtocol
 def start_server(handler: RPCHandler, host: str = "127.0.0.1", port: int = 8000, lifespan = None):
 
     app = fastapi.FastAPI(lifespan=lifespan)
-    for method in handler.methods:
-        app.add_api_route(f'/{method}', endpoint=getattr(handler, method), methods=["POST"])
+    for method_name, method_data in handler.methods.items():
+        def create_route_handler(handler):
+            async def method_proxy(arguments: method_data.args_model = fastapi.Body(...)):
+                logging.error('arguments %s', arguments)
+                response = await handler(**dict(arguments))
+                logging.error('response %s', response)
+                return {
+                    "value": response
+                }
+
+            return method_proxy
+
+        method_data.__name__ = getattr(handler, method_name).__name__
+        method_data.__qualname__ = getattr(handler, method_name).__qualname__
+        method_data.__doc__ = getattr(handler, method_name).__doc__
+
+        app.add_api_route(f'/{method_name}',
+                          endpoint=create_route_handler(getattr(handler, method_name)),
+                          methods=["POST"],
+                          response_model=method_data.return_model)
 
     uvicorn.run(app, host=host, port=port)
 
@@ -51,11 +70,10 @@ class HttpExecutor(typing.Generic[T]):
         return f"RemotePython[{self._protocol.__name__}] at {hex(id(self))}"
 
     async def _call_remote_method(self, method: MethodType, method_name, **kwargs) -> T:
-        print(kwargs)
-        response = await self._session.request("POST", f"/{method_name}", params=kwargs)
+        response = await self._session.request("POST", f"/{method_name}", json=kwargs)
 
         json_text = await response.json()
-        return method.return_model(value=json_text).value
+        return method.return_model(**json_text).value
 
 
 

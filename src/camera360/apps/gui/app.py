@@ -67,7 +67,7 @@ class Application:
         )
 
     async def get_camera_preview(self, camera_id: str):
-        return await self._supervisor.preview(device_path=camera_id)
+        return await self._supervisor.preview(camera_id=camera_id, device_path=camera_id)
 
     async def connect(self, reconnect: bool = False):
         connection = Connection(host="127.0.0.1", port=8181)

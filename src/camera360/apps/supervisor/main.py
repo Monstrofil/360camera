@@ -15,6 +15,8 @@ from camera360.lib.supervisor.protocol import (
     SystemStatus,
 )
 
+from .settings import settings
+
 CONNECTIONS = [
     ("127.0.0.1", 8000),
     # ("127.0.0.1", 8001)
@@ -108,9 +110,17 @@ class Handler(RPCHandler, SupervisorProtocol):
         ]
         return self._status
 
-    async def preview(self, *, device_path: str) -> bytes:
-        return await self.cameras[0].preview(
-            device_path=device_path)
+    async def preview(self, *, camera_id: str, device_path: str) -> bytes:
+        async def get_camera(camera_id):
+            for camera in self.cameras:
+                for device in await camera.devices():
+                    if camera_id != f'192.168.0.109_{device}':
+                        continue
+                    return device, camera
+
+        device, camera = await get_camera(camera_id)
+        return await camera.preview(
+            device_path=device)
 
 
 async def connect_hosts(connections, handler):
@@ -154,7 +164,7 @@ def run(connections):
 
         yield
 
-    start_server(handler, host="127.0.0.1", port=8181, lifespan=lifespan)
+    start_server(handler, host=settings.host, port=settings.port, lifespan=lifespan)
 
 
 
