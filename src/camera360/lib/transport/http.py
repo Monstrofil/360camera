@@ -18,9 +18,7 @@ def start_server(handler: RPCHandler, host: str = "127.0.0.1", port: int = 8000,
     for method_name, method_data in handler.methods.items():
         def create_route_handler(handler):
             async def method_proxy(arguments: method_data.args_model = fastapi.Body(...)):
-                logging.error('arguments %s', arguments)
                 response = await handler(**dict(arguments))
-                logging.error('response %s', response)
                 return {
                     "value": response
                 }

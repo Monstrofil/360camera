@@ -122,14 +122,3 @@ def iter_media_devices():
 
         if device is not None and device.sensor_device:
             yield device
-
-
-if __name__ == "__main__":
-    device = get_media_device('/dev/media3')
-    print(device)
-
-    from v4l2py import Device
-    dev = Device(device.cif_device, read_write=True)
-    dev.open()
-
-    print(dev.controls)

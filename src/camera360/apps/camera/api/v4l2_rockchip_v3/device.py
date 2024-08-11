@@ -51,8 +51,6 @@ class CameraAPI(device.VideoDevice):
             height
         )
 
-        print(self._rockchip_media.mainpath_device)
-        print('self._video_device.get_format(BufferType.VIDEO_CAPTURE_MPLANE)', self._video_device.get_format(BufferType.VIDEO_CAPTURE_MPLANE))
         self._video_device.set_format(
             BufferType.VIDEO_CAPTURE_MPLANE,
             width=width,
