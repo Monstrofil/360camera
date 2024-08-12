@@ -17,14 +17,13 @@ class EncodeFormat:
 
 class FakeEncoder(device.Encoder):
 
-    def __init__(self, dirname="video"):
-        self._dirname = dirname
+    def __init__(self):
         self._capture_pipeline: typing.Optional[asyncio.subprocess.Process] = None
 
         self._encode_format: EncodeFormat | None = None
 
-    async def init(self, width: int, height: int, framerate: int = 10):
-        os.makedirs(self._dirname, exist_ok=True)
+    async def init(self, destination: str, width: int, height: int, framerate=10) -> None:
+        os.makedirs(destination, exist_ok=True)
         self._encode_format = EncodeFormat(width, height)
 
         self._capture_pipeline = await asyncio.create_subprocess_exec(
@@ -36,7 +35,7 @@ class FakeEncoder(device.Encoder):
                 '! mpph264enc '
                 '! h264parse '
                 '! mp4mux '
-                f"! filesink location={self._dirname}/{datetime.datetime.now().isoformat()}.mp4"
+                f"! filesink location={destination}/{datetime.datetime.now().isoformat()}.mp4"
             ),
             stdin=asyncio.subprocess.PIPE
         )

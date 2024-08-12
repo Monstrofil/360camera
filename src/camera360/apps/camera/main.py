@@ -4,6 +4,8 @@ import datetime
 import logging
 import traceback
 import typing
+import uuid
+from pathlib import Path
 
 from camera360.apps.camera.api import load_api
 from camera360.apps.camera.settings import settings
@@ -23,7 +25,11 @@ class Handler(RPCHandler, CameraProtocol):
         self._factory = self._api.Factory()
 
         self._capture_tasks: dict[str, asyncio.Task] = {}
+        self._handler_id = uuid.uuid4().hex
         super().__init__()
+
+    async def id(self):
+        return self._handler_id
 
     async def devices(self):            
         return await self._factory.list_devices()
@@ -40,7 +46,9 @@ class Handler(RPCHandler, CameraProtocol):
         camera_api = self._api.Device(device_path)
         encoder = self._api.Encoder()
 
-        await encoder.init(width=width, height=height)
+        recording_path = Path(settings.storage_path) / self._handler_id
+
+        await encoder.init(destination=str(recording_path), width=width, height=height)
         await camera_api.start(width=width, height=height)
 
         task = asyncio.create_task(self._capture_loop(camera_api, encoder))
@@ -48,7 +56,9 @@ class Handler(RPCHandler, CameraProtocol):
         task.add_done_callback(partial(self.on_task_done, device_path))
 
         return CaptureStartData(
-            capture_time=datetime.datetime.now(), index=1, meta=dict(test="test")
+            capture_time=datetime.datetime.now(),
+            index=1,
+            meta=dict(test="test")
         )
 
     def on_task_done(self, device_path: str, future: asyncio.Future):
@@ -94,8 +104,8 @@ class Handler(RPCHandler, CameraProtocol):
         camera_api = self._api.Device(device_path)
         preview_encoder = self._api.Preview()
 
-        await preview_encoder.init(1920, 1080)
-        await camera_api.start(1920, 1080)
+        await preview_encoder.init(640, 480)
+        await camera_api.start(640, 480)
         try:
             async for frame in camera_api.get_frame(frames=1):
                 try:

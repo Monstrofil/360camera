@@ -32,6 +32,7 @@ Source = "https://github.com/Monstrofil/360camera"
 camera-daemon = "camera360.apps.camera.main:main"
 camera-cli = "camera360.apps.camera.cli:main"
 supervisor-daemon = "camera360.apps.supervisor.main:main"
+gui-daemon = "camera360.apps.gui.main:main"
 
 [tool.hatch.version]
 path = "src/camera360/__about__.py"

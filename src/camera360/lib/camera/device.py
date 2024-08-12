@@ -34,7 +34,7 @@ class VideoDevice(typing.Protocol):
 
 
 class Encoder(typing.Protocol):
-    async def init(self, width: int, height: int) -> None:
+    async def init(self, destination: str, width: int, height: int) -> None:
         ...
 
     async def fini(self):

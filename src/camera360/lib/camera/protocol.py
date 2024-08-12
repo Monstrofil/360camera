@@ -33,6 +33,9 @@ class Metadata(BaseModel):
 
 class CameraProtocol(RPCProtocol):
     @method
+    async def id(self) -> str: ...
+
+    @method
     async def devices(self) -> list[str]: ...
 
     @method

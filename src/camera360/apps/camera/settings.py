@@ -33,7 +33,7 @@ class Settings(BaseSettings):
 
     device: Literal['fake', 'v4l2_rockchip_v3'] = "fake"
 
-    storage_path: str = ""
+    storage_path: str = "video"
 
     # Current environment
     environment: str = "dev"

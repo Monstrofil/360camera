@@ -3,7 +3,7 @@ import logging
 from contextlib import contextmanager, asynccontextmanager
 from typing import List, Any
 
-from camera360.lib.camera.controls import NumericControl, AnyControl
+from camera360.lib.camera.controls import NumericControl, AnyControl, MenuItem
 from camera360.lib.camera.protocol import CameraProtocol
 from camera360.lib.rpc.protocol import RPCHandler
 from camera360.lib.transport.http import connect, start_server, Connection
@@ -22,6 +22,8 @@ CONNECTIONS = [
     # ("127.0.0.1", 8001)
 ]
 
+RESOLUTION_CONTROL_ID = "Resolution"
+
 
 class Handler(RPCHandler, SupervisorProtocol):
     def __init__(self):
@@ -31,10 +33,19 @@ class Handler(RPCHandler, SupervisorProtocol):
         self._status = Status(status=SystemStatus.idle)
 
         self._controls = [
-            NumericControl(name="Exposure", value=11, minimum=10, maximum=25, default=11),
-            NumericControl(name="Framerate", value=2, minimum=1, maximum=10, default=1, step=1),
+            MenuItem(name=RESOLUTION_CONTROL_ID, value=0, options={
+                0: '1920x1080',
+                1: '640x480',
+                2: '4048x3040',
+            }),
         ]
         super().__init__()
+
+    def _get_control_by_name(self, name: str) -> AnyControl:
+        for control in self._controls:
+            if control.name != name:
+                continue
+            return control
 
     @contextmanager
     def _status_transition(self, status: SystemStatus):
@@ -61,10 +72,13 @@ class Handler(RPCHandler, SupervisorProtocol):
         ]
 
     async def start(self) -> None:
+        resolution_ctrl = self._get_control_by_name(RESOLUTION_CONTROL_ID)
+        width, height = map(int, resolution_ctrl.options[resolution_ctrl.value].split('x'))
+
         tasks = []
         for camera in self.cameras:
             for device in await camera.devices():
-                tasks.append(camera.start(device_path=device, width=1920, height=1080))
+                tasks.append(camera.start(device_path=device, width=width, height=height))
 
         with self._status_transition(SystemStatus.capture):
             await asyncio.gather(*tasks)
@@ -85,7 +99,7 @@ class Handler(RPCHandler, SupervisorProtocol):
         camera_controls = {}
         for camera in self.cameras:
             for device in await camera.devices():
-                camera_controls[f'192.168.0.109_{device}'] = \
+                camera_controls[f'{await camera.id()}_{device}'] = \
                     await camera.controls(device_path=device)
         return camera_controls
 
@@ -96,15 +110,15 @@ class Handler(RPCHandler, SupervisorProtocol):
 
             control.value = values[control.name]
 
-    async def set_camera_control(self, camera_id: str, name: str, value: Any) -> None:
-        async def get_camera(camera_id):
-            for camera in self.cameras:
-                for device in await camera.devices():
-                    if camera_id != f'192.168.0.109_{device}':
-                        continue
-                    return device, camera
+    async def _get_camera_by_id(self, identifier: str) -> tuple[str, CameraProtocol] | None:
+        for camera in self.cameras:
+            for device in await camera.devices():
+                if identifier != f'{await camera.id()}_{device}':
+                    continue
+                return device, camera
 
-        device, camera = await get_camera(camera_id)
+    async def set_camera_control(self, camera_id: str, name: str, value: Any) -> None:
+        device, camera = await self._get_camera_by_id(camera_id)
         await camera.set_control(device_path=device, control_name=name, value=value)
 
     async def status(self) -> Status:
@@ -115,16 +129,8 @@ class Handler(RPCHandler, SupervisorProtocol):
         return self._status
 
     async def preview(self, *, camera_id: str) -> bytes:
-        async def get_camera(camera_id):
-            for camera in self.cameras:
-                for device in await camera.devices():
-                    if camera_id != f'192.168.0.109_{device}':
-                        continue
-                    return device, camera
-
-        device, camera = await get_camera(camera_id)
-        return await camera.preview(
-            device_path=device)
+        device, camera = await self._get_camera_by_id(camera_id)
+        return await camera.preview(device_path=device)
 
 
 async def connect_hosts(connections, handler):
@@ -159,7 +165,6 @@ def run(connections):
 
     @asynccontextmanager
     async def lifespan(app):
-
         executors = await connect_hosts(connections, handler=handler)
 
         results = await asyncio.gather(*[api.metadata() for api in executors])
@@ -169,7 +174,6 @@ def run(connections):
         yield
 
     start_server(handler, host=settings.host, port=settings.port, lifespan=lifespan)
-
 
 
 def main():

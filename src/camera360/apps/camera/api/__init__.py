@@ -10,7 +10,7 @@ class Api:
     Factory: type[device.Factory]
     Device: type[device.VideoDevice]
     Encoder: type[device.Encoder]
-    Preview: type[device.Encoder]
+    Preview: type[device.Preview]
 
 
 def load_api(name: str) -> Api:

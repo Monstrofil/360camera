@@ -30,20 +30,6 @@ app.on_startup(handle_startup)
 # app.on_shutdown(handle_shutdown)
 
 
-def camera_tab_content():
-    ui.label("Video stream")
-    ui.video(src="//localhost", autoplay=True, muted=True).classes("w-6/12")
-    ui.separator()
-
-    ui.label("Controls")
-    # with ui.row():
-    #     for item in controls.controls:
-    #         create_control(
-    #             control=item,
-    #             on_change=lambda e: ui.notify(e.value)
-    #         )
-
-
 async def generic_page_header():
     with ui.header().classes(replace="row items-center") \
             .classes('items-center duration-200 p-0 px-4 no-wrap') \
@@ -91,12 +77,11 @@ async def advanced_page():
 
     controls_per_camera = await application.camera_controls()
     tabs_per_camera = []
-    with ui.splitter(value=30).classes('w-full') as splitter, splitter.before:
-        with ui.tabs().props('vertical').classes('w-full') as tabs:
-            for camera_id, camera_ctrls in controls_per_camera.items():
-                tabs_per_camera.append(ui.tab(camera_id))
+    with ui.tabs().classes('w-full') as tabs:
+        for camera_id, camera_ctrls in controls_per_camera.items():
+            tabs_per_camera.append(ui.tab(camera_id))
 
-    with splitter.after, ui.tab_panels(tabs, value="Camera controls").classes('w-full'):
+    with ui.tab_panels(tabs, value="Camera controls").classes('w-full'):
         for tab, (camera_id, camera_ctrls) in zip(tabs_per_camera, controls_per_camera.items()):
             with ui.tab_panel(tab), ui.row().classes('w-full'):
                 for item in camera_ctrls:
