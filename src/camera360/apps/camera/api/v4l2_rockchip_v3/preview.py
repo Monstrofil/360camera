@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import shlex
+import tempfile
 import typing
 from dataclasses import dataclass
 
@@ -18,8 +19,10 @@ class PreviewEncoder:
         self._preview_pipeline: typing.Optional[asyncio.subprocess.Process] = None
 
         self._encode_format: EncodeFormat | None = None
+        self._tempfile = None
 
     async def init(self, width: int, height: int, framerate: int = 10):
+        self._tempfile = tempfile.NamedTemporaryFile()
         self._preview_pipeline = await asyncio.create_subprocess_exec(
             "gst-launch-1.0",
             *shlex.split(
@@ -27,7 +30,7 @@ class PreviewEncoder:
                 '! queue '
                 f'! rawvideoparse width={width} height={height} format=nv12 framerate={framerate}/1 '
                 '! jpegenc '
-                "! filesink location=raw.jpeg"
+                f"! filesink location={self._tempfile.name}"
             ),
             stdout=asyncio.subprocess.PIPE,
             stdin=asyncio.subprocess.PIPE
@@ -54,9 +57,14 @@ class PreviewEncoder:
         await self._preview_pipeline.stdin.drain()
         self._preview_pipeline.stdin.close()
 
+        # todo: get back to this approach later
         # jpeg_data = await self._preview_pipeline.stdout.read()
         await self._preview_pipeline.wait()
-        with open('raw.jpeg', 'rb') as f:
+        with open(self._tempfile.name, 'rb') as f:
             jpeg_data = f.read()
+
+
+        self._tempfile.close()
+        self._tempfile = None
 
         return jpeg_data
