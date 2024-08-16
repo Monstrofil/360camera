@@ -14,6 +14,14 @@ class CaptureStartData(BaseModel):
     recording_path: str
 
 
+class CaptureStatistics(BaseModel):
+    frames: int = 0
+
+
+class FinishedRecording(BaseModel):
+    statistics: CaptureStatistics
+
+
 class CameraStatus(StrEnum):
     IDLE = auto()
     BUSY = auto()
@@ -60,7 +68,7 @@ class CameraProtocol(RPCProtocol):
     ) -> CaptureStartData: ...
 
     @method
-    async def stop(self, *, device_path: str) -> None: ...
+    async def stop(self, *, device_path: str) -> FinishedRecording | None: ...
 
     @method
     async def status(self, *, device_path: str) -> CaptureStatusData: ...

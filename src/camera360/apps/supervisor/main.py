@@ -29,6 +29,28 @@ CONNECTIONS = [
 RESOLUTION_CONTROL_ID = "Resolution"
 
 
+class SupervisorMetadata:
+    def __init__(self):
+        self._camera_records = None
+        self._camera_statistics = None
+
+    def set_camera_records(self, camera_records):
+        self._camera_records = camera_records
+
+    def set_camera_statistics(self, camera_statistics):
+        self._camera_statistics = camera_statistics
+
+    def get_model(self):
+        return dict(
+            records=[
+                dict(
+                    index=result.index,
+                    path=result.recording_path
+                ) for result in self._camera_records],
+            statistics=self._camera_statistics,
+        )
+
+
 class Handler(RPCHandler, SupervisorProtocol):
     def __init__(self):
         self.supervisors: list[SupervisorProtocol] = []
@@ -36,6 +58,8 @@ class Handler(RPCHandler, SupervisorProtocol):
 
         self._status = Status(status=SystemStatus.idle)
         self._group_capture_metadata: io.BytesIO | None = None
+
+        self._metadata: SupervisorMetadata | None = None
 
         self._controls = [
             MenuItem(name=RESOLUTION_CONTROL_ID, value=0, options={
@@ -73,7 +97,7 @@ class Handler(RPCHandler, SupervisorProtocol):
             for index, client in enumerate(self.cameras)
         ]
 
-    async def captures(self) -> list[list]:
+    async def captures(self) -> list:
         mask = Path(settings.storage_path)
 
         return [json.loads(f.read_text()) for f in mask.glob('*.json')]
@@ -98,16 +122,8 @@ class Handler(RPCHandler, SupervisorProtocol):
                 await asyncio.gather(*stop_tasks)
                 raise Exception("Unable to start camera capture")
             else:
-                filepath = (
-                        Path(settings.storage_path) / datetime.datetime.now().isoformat()
-                ).with_suffix('.json')
-                filepath.parent.mkdir(parents=True, exist_ok=True)
-                self._group_capture_metadata = filepath.open('w')
-                self._group_capture_metadata.write(json.dumps([
-                    dict(
-                        index=result.index,
-                        path=result.recording_path
-                    ) for result in results]))
+                self._metadata = SupervisorMetadata()
+                self._metadata.set_camera_records(results)
 
     async def stop(self) -> None:
         tasks = []
@@ -117,10 +133,20 @@ class Handler(RPCHandler, SupervisorProtocol):
                 tasks.append(camera.stop(device_path=device))
 
         with self._status_transition(SystemStatus.idle):
-            await asyncio.gather(*tasks)
+            completed_records = await asyncio.gather(*tasks)
 
-        self._group_capture_metadata.close()
-        self._group_capture_metadata = None
+        filepath = (
+            Path(settings.storage_path) / datetime.datetime.now().isoformat()
+        ).with_suffix('.json')
+
+        self._metadata.set_camera_statistics([
+            item.model_dump() for item in completed_records
+        ])
+
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        with filepath.open('w') as f:
+            f.write(json.dumps(self._metadata.get_model()))
+        self._metadata = None
 
     async def controls(self) -> list[AnyControl]:
         return self._controls[:]

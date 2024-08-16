@@ -11,16 +11,19 @@ from pathlib import Path
 
 from camera360.apps.camera.api import load_api
 from camera360.apps.camera.settings import settings
-from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData, CaptureStatusData, CameraStatus
+from camera360.lib.camera.protocol import (
+    CameraProtocol,
+    CaptureStartData,
+    CaptureStatusData,
+    CameraStatus,
+    FinishedRecording,
+    CaptureStatistics
+)
 from camera360.lib.rpc.protocol import RPCHandler
 from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData
 from camera360.lib.transport.http import start_server
 from functools import partial
 from camera360.lib.camera.controls import AnyControl
-
-
-class CaptureStatistics:
-    frames: int = 0
 
 
 @dataclass
@@ -91,7 +94,6 @@ class Handler(RPCHandler, CameraProtocol):
         )
 
     def on_task_done(self, device_path: str, future: asyncio.Future):
-        del self._capture_tasks[device_path]
         if e := future.exception():
             traceback.print_exception(e)
 
@@ -106,7 +108,7 @@ class Handler(RPCHandler, CameraProtocol):
             await camera_api.stop()
             await encoder.fini()
 
-    async def stop(self, device_path: str) -> None:
+    async def stop(self, device_path: str) -> FinishedRecording | None:
         if device_path not in self._capture_tasks:
             logging.warning("Camera already stopped")
             return
@@ -119,6 +121,13 @@ class Handler(RPCHandler, CameraProtocol):
                 self._capture_tasks[device_path].task.cancel()
             else:
                 break
+
+        recording = FinishedRecording(
+            statistics=self._capture_tasks[device_path].statistics
+        )
+        del self._capture_tasks[device_path]
+
+        return recording
 
     async def status(self, *, device_path: str) -> CaptureStatusData:
         if device_path not in self._capture_tasks:
