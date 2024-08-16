@@ -1,15 +1,17 @@
 import asyncio
 import base64
+import dataclasses
 import datetime
 import logging
 import traceback
 import typing
 import uuid
+from dataclasses import dataclass
 from pathlib import Path
 
 from camera360.apps.camera.api import load_api
 from camera360.apps.camera.settings import settings
-from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData
+from camera360.lib.camera.protocol import CameraProtocol, CaptureStartData, CaptureStatusData, CameraStatus
 from camera360.lib.rpc.protocol import RPCHandler
 from camera360.lib.supervisor.protocol import SupervisorProtocol, FrameData
 from camera360.lib.transport.http import start_server
@@ -17,48 +19,75 @@ from functools import partial
 from camera360.lib.camera.controls import AnyControl
 
 
+class CaptureStatistics:
+    frames: int = 0
+
+
+@dataclass
+class Capture:
+    task: asyncio.Task
+
+    statistics: CaptureStatistics = dataclasses.field(default_factory=CaptureStatistics)
+
+
 class Handler(RPCHandler, CameraProtocol):
     def __init__(self):
         self.supervisors: list[SupervisorProtocol] = []
-        
+
         self._api = load_api(settings.device)
         self._factory = self._api.Factory()
 
-        self._capture_tasks: dict[str, asyncio.Task] = {}
+        self._capture_tasks: dict[str, Capture] = {}
         self._handler_id = uuid.uuid4().hex
         super().__init__()
 
     async def id(self):
         return self._handler_id
 
-    async def devices(self):            
+    async def devices(self):
         return await self._factory.list_devices()
 
     async def metadata(self):
         return await self._factory.metadata()
 
+    async def captures(self):
+        recording_path = Path(settings.storage_path) / self._handler_id
+        return await self._factory.list_captures(str(recording_path))
+
     async def start(
-        self, *, device_path: str, width: int, height: int
+            self, *, device_path: str, width: int, height: int
     ) -> CaptureStartData:
         if device_path in self._capture_tasks:
             raise RuntimeError("Already started.")
-        
+
         camera_api = self._api.Device(device_path)
         encoder = self._api.Encoder()
 
-        recording_path = Path(settings.storage_path) / self._handler_id
+        recording_path = Path(settings.storage_path) / self._handler_id / datetime.datetime.now().isoformat()
 
         await encoder.init(destination=str(recording_path), width=width, height=height)
         await camera_api.start(width=width, height=height)
 
-        task = asyncio.create_task(self._capture_loop(camera_api, encoder))
-        self._capture_tasks[device_path] = task
+        task = asyncio.create_task(self._capture_loop(camera_api, encoder, device_path))
+        self._capture_tasks[device_path] = Capture(task=task)
         task.add_done_callback(partial(self.on_task_done, device_path))
 
+        try:
+            # check that we really start capture
+            # because actual stream can just hang
+            # and never give us any frames
+            await asyncio.wait_for(
+                camera_api.frame_received_event.wait(),
+                timeout=1
+            )
+        except asyncio.TimeoutError:
+            logging.error('Timed out waiting for frame received. Camera is not started properly.')
+            raise
+
         return CaptureStartData(
-            capture_time=datetime.datetime.now(),
             index=1,
-            meta=dict(test="test")
+            capture_time=datetime.datetime.now(),
+            recording_path=str(recording_path)
         )
 
     def on_task_done(self, device_path: str, future: asyncio.Future):
@@ -66,24 +95,12 @@ class Handler(RPCHandler, CameraProtocol):
         if e := future.exception():
             traceback.print_exception(e)
 
-    async def _send_frame_callback(self, frame: FrameData):
-        logging.info("Sending frame callback")
-        try:
-            await asyncio.gather(
-                *[
-                    item.on_frame_received(frame=frame)
-                    for item in self.supervisors
-                ]
-            )
-        except ConnectionResetError:
-            logging.warning("Unable to deliver callback")
-            pass
-
-    async def _capture_loop(self, camera_api, encoder) -> None:
+    async def _capture_loop(self, camera_api, encoder, device_path) -> None:
         try:
             async for frame in camera_api.get_frame():
                 await encoder.encode(frame)
-                await self._send_frame_callback(FrameData(index=frame.sequence))
+
+                self._capture_tasks[device_path].statistics.frames += 1
         except asyncio.CancelledError:
             logging.info('Capture loop is being cancelled')
             await camera_api.stop()
@@ -94,11 +111,23 @@ class Handler(RPCHandler, CameraProtocol):
             logging.warning("Camera already stopped")
             return
 
-        self._capture_tasks[device_path].cancel()
+        self._capture_tasks[device_path].task.cancel()
+        while True:
+            try:
+                await asyncio.wait_for(self._capture_tasks[device_path].task, timeout=1)
+            except asyncio.TimeoutError:
+                self._capture_tasks[device_path].task.cancel()
+            else:
+                break
 
-    async def reset(self) -> None:
-        if self._capture_task:
-            await self.stop()
+    async def status(self, *, device_path: str) -> CaptureStatusData:
+        if device_path not in self._capture_tasks:
+            return CaptureStatusData(status=CameraStatus.IDLE, frame=None)
+
+        return CaptureStatusData(
+            status=CameraStatus.BUSY,
+            frame=self._capture_tasks[device_path].statistics.frames
+        )
 
     async def preview(self, device_path: str) -> bytes:
         camera_api = self._api.Device(device_path)
@@ -119,12 +148,11 @@ class Handler(RPCHandler, CameraProtocol):
     async def controls(self, *, device_path) -> list[AnyControl]:
         camera_api = self._api.Device(device_path)
         return await camera_api.controls()
-    
+
     async def set_control(self, *, device_path: str, control_name: str, value: typing.Any):
         camera_api = self._api.Device(device_path)
         logging.info('Set control %s value %s', control_name, value)
         await camera_api.set_control(control_name=control_name, value=value)
-
 
 
 def main():

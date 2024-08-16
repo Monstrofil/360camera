@@ -37,6 +37,7 @@ async def generic_page_header():
         with ui.row():
             ui.link('Main', main_page).classes(replace='text-md text-white')
             ui.link('Preview', preview_page).classes(replace='text-md text-white')
+            ui.link('Records', records_page).classes(replace='text-md text-white')
             ui.link('Advanced', advanced_page).classes(replace='text-md text-white')
 
 
@@ -59,6 +60,22 @@ async def preview_page():
                 img = ui.image('/preview.jpeg?camera_id=%s' % camera_id).classes('w-64')
                 ui.button('Force reload', on_click=img.force_reload)
                 ui.label('Camera preview %s' % camera_id)
+
+
+@ui.page("/records")
+async def records_page():
+    await generic_page_header()
+    ui.markdown("""
+    **Records**
+
+    This section allows you to view existing records.
+    """)
+
+    captures = await application.captures()
+    with ui.row():
+        for capture in captures:
+            with ui.card():
+                ui.label('Camera capture %s' % capture)
 
 
 @ui.page("/advanced")
@@ -103,12 +120,16 @@ async def main_page():
         ui.spinner().bind_visibility_from(status, "pending_status")
 
     async def on_toggle_change(event):
-        if event.value == "on":
-            await application.start_capture()
-        elif event.value == "off":
-            await application.stop_capture()
-        else:
-            raise NotImplementedError
+        try:
+            if event.value == "on":
+                await application.start_capture()
+            elif event.value == "off":
+                await application.stop_capture()
+            else:
+                raise NotImplementedError
+        except Exception as e:
+            ui.notify(str(e), type='negative')
+            await application.status(refresh=True)
 
     toggle_value = "on" if status.status == SystemStatus.capture else "off"
     ui.toggle(["on", "off"], value=toggle_value, on_change=on_toggle_change)

@@ -1,8 +1,11 @@
 import asyncio
 import datetime
+import io
 import logging
 import os
+import pathlib
 import shlex
+import struct
 import typing
 from dataclasses import dataclass
 
@@ -15,10 +18,19 @@ class EncodeFormat:
     height: int
 
 
+# id: uint16
+# timestamp: uint32
+# sequence: uint32
+METADATA_PACKET_FRAME = struct.Struct('HfI')
+
+
+
 class FakeEncoder(device.Encoder):
 
     def __init__(self):
         self._capture_pipeline: typing.Optional[asyncio.subprocess.Process] = None
+        # todo: probably this must be a part of another class
+        self._metadata_file: typing.Optional[io.BytesIO] = None
 
         self._encode_format: EncodeFormat | None = None
 
@@ -26,6 +38,7 @@ class FakeEncoder(device.Encoder):
         os.makedirs(destination, exist_ok=True)
         self._encode_format = EncodeFormat(width, height)
 
+        location = pathlib.Path(destination)
         self._capture_pipeline = await asyncio.create_subprocess_exec(
             "gst-launch-1.0",
             *shlex.split(
@@ -35,10 +48,11 @@ class FakeEncoder(device.Encoder):
                 '! mpph264enc '
                 '! h264parse '
                 '! mp4mux '
-                f"! filesink location={destination}/{datetime.datetime.now().isoformat()}.mp4"
+                f"! filesink location={location.with_suffix('.mp4')}"
             ),
             stdin=asyncio.subprocess.PIPE
         )
+        self._metadata_file = location.with_suffix('.metadata').open('wb')
 
     async def fini(self):
         if self._capture_pipeline:
@@ -50,6 +64,9 @@ class FakeEncoder(device.Encoder):
         self._capture_pipeline = None
         self._encode_format = None
 
+        self._metadata_file.close()
+        self._metadata_file = None
+
     async def encode(self, frame: device.RawFrame):
         logging.info("Encoding buffer")
 
@@ -60,3 +77,7 @@ class FakeEncoder(device.Encoder):
 
         self._capture_pipeline.stdin.write(frame.buffer)
         await self._capture_pipeline.stdin.drain()
+
+        self._metadata_file.write(
+            METADATA_PACKET_FRAME.pack(0x01, frame.timestamp, frame.sequence)
+        )

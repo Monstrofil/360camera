@@ -1,3 +1,4 @@
+import asyncio
 import typing
 from dataclasses import dataclass
 
@@ -10,6 +11,7 @@ class RawFrame:
     width: int
     height: int
     sequence: int
+    timestamp: float
     buffer: bytes
 
 
@@ -17,6 +19,8 @@ class TimeoutError(OSError):
     ...
 
 class VideoDevice(typing.Protocol):
+    frame_received_event: asyncio.Event
+
     def __init__(self, media_path: str) -> None:
         super().__init__()
 
@@ -60,3 +64,7 @@ class Preview(typing.Protocol):
 
 class Factory(typing.Protocol):
     async def list_devices(self) -> list[VideoDevice]: ...
+
+    async def list_captures(self, destination: str) -> list[str]: ...
+
+    async def metadata(self) -> Metadata: ...

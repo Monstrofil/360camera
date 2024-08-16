@@ -50,6 +50,9 @@ class Application:
     async def camera_controls(self):
         return await self._supervisor.camera_controls()
 
+    async def captures(self):
+        return await self._supervisor.captures()
+
     async def set_control(self, name, value):
         if hasattr(value, 'value'):
             value = value.value

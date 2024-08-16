@@ -36,6 +36,8 @@ class Settings(BaseSettings):
 
     log_level: LogLevel = LogLevel.INFO
 
+    storage_path: str = "videogroups"
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_prefix="SUPERVISOR_",

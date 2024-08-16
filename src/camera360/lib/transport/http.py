@@ -12,13 +12,16 @@ from ..rpc.decorators import MethodType
 from ..rpc.protocol import RPCHandler, RPCProtocol
 
 
-def start_server(handler: RPCHandler, host: str = "127.0.0.1", port: int = 8000, lifespan = None):
-
+def start_server(handler: RPCHandler, host: str = "127.0.0.1", port: int = 8000, lifespan=None):
     app = fastapi.FastAPI(lifespan=lifespan)
     for method_name, method_data in handler.methods.items():
-        def create_route_handler(handler):
+        def create_route_handler(function: typing.Callable[..., typing.Coroutine]):
             async def method_proxy(arguments: method_data.args_model = fastapi.Body(...)):
-                response = await handler(**dict(arguments))
+                try:
+                    response = await function(**dict(arguments))
+                    logging.info('%s %s', response, type(response))
+                except Exception as e:
+                    raise fastapi.HTTPException(status_code=404, detail=str(e))
                 return {
                     "value": response
                 }
@@ -42,7 +45,7 @@ T = typing.TypeVar("T")
 
 @contextlib.asynccontextmanager
 async def connect(
-    host: str, port: int, protocol: type[T], handler=None
+        host: str, port: int, protocol: type[T], handler=None
 ) -> typing.AsyncContextManager[T]:
     conn = Connection(host, port)
     executor = await conn.connect(protocol, handler)
@@ -70,9 +73,12 @@ class HttpExecutor(typing.Generic[T]):
     async def _call_remote_method(self, method: MethodType, method_name, **kwargs) -> T:
         response = await self._session.request("POST", f"/{method_name}", json=kwargs)
 
-        json_text = await response.json()
-        return method.return_model(**json_text).value
+        if response.status == 200:
+            json_text = await response.json()
+            return method.return_model(**json_text).value
 
+        else:
+            raise Exception(await response.json())
 
 
 class Connection:

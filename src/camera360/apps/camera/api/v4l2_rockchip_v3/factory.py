@@ -1,8 +1,12 @@
+import glob
+import pathlib
+
 from camera360.lib.camera import device
 
 from .rockchip import iter_media_devices
 from camera360.lib.camera import device
 from camera360.lib.camera.protocol import Metadata, Camera
+from ...settings import settings
 
 
 class Factory(device.Factory):
@@ -16,6 +20,11 @@ class Factory(device.Factory):
             
         return list_of_media
 
+    async def list_captures(self, storage: str) -> list[str]:
+        location = pathlib.Path(settings.storage_path) / '*/*.metadata'
+
+        print(location)
+        return glob.glob(str(location))
     
     async def metadata(self) -> Metadata:
         return Metadata(

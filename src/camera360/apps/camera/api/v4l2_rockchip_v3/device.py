@@ -35,6 +35,8 @@ class CameraAPI(device.VideoDevice):
         self._media_path = media_path
         self.frame_id: int = 0
 
+        self.frame_received_event = asyncio.Event()
+
     async def metadata(self) -> Metadata:
         return Metadata(
             devices=[
@@ -58,6 +60,9 @@ class CameraAPI(device.VideoDevice):
             pixel_format='NV12'
         )
         logging.info('Set format for %s', self._rockchip_media.mainpath_device)
+
+        # sometimes resolution change does not happen immediately
+        await asyncio.sleep(2)
 
         self._video_feed = VideoCapture(
             device=self._video_device,
@@ -145,12 +150,15 @@ class CameraAPI(device.VideoDevice):
                          f"height={frame.height}, "
                          f"format={frame.pixel_format.name}")
 
+            self.frame_received_event.set()
+
             if frame.frame_nb != self.frame_id + 1:
                 logging.warning('Dropped frame number=%s', self.frame_id + 1)
 
             self.frame_id = frame.frame_nb
             yield RawFrame(
                 sequence=self.frame_id,
+                timestamp=frame.timestamp,
                 width=frame.width,
                 height=frame.height,
                 buffer=frame.data)
